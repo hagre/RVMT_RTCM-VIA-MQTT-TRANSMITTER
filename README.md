@@ -35,7 +35,10 @@ Hardware in use:
 -Ardusimple "simpleRTK2B v1.1" board with u-blox ANN-MB-00 Antenna for GNSS Dual Band
 
 Big thanks to the arduino community for making ths all possible.
-I have to anounce that an external libarie is used: knolleary/pubsubclient  (licensed under the MIT License). Check https://github.com/knolleary/pubsubclient
+
+I have to anounce that an external libarie is used: 
+knolleary/pubsubclient  (licensed under the MIT License). 
+Check https://github.com/knolleary/pubsubclient
 
 During research for this project, i found some projects working on ths promissing concept.
 
