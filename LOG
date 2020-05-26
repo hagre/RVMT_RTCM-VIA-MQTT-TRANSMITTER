@@ -1,0 +1,7 @@
+Log:
+... long time
+V2.0 - new structure
+    - remove a lot of unused code
+    - debug basic features - are working now. Intense and longterm stability testing just started
+v2.1 - clean up code
+    - import to github
