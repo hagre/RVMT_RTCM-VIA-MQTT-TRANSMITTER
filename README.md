@@ -1,7 +1,7 @@
 # RVMT (RTCM-VIA-MQTT-TRANSMITTER)
 INFO: This Software is made for my private use. I like to share, but for further details read the LICENCE file! (GPL3)
 
-Check: https://github.com/hagre/RVMP-RTCM-Via-MQTT-Protocol
+Check: https://github.com/hagre/RVMP_RTCM-VIA-MQTT-PROTOCOL
 
 RVMT (RTCM VIA MQTT TRANSMITTER) is using the MQTT protocol (as a secure and opensource alternative to NTRIP) to get RTK correction data for my rover GPS units.
 As a target system i will use https://github.com/farmerbriantee/AgOpenGPS.
