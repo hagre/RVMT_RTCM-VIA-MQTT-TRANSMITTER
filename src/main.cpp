@@ -8,8 +8,9 @@ Basic selection via #define in the top of this code
 
 by hagre 
 06 2019 - 2020 
-V2.1 - check LOG file
 */
+#define VERSION 2
+#define SUB_VERSION 2
 
 //Select Type of equipment
 #define SERVER_ROOF_NOTE
@@ -684,6 +685,7 @@ void loop() { // -------------------------------- L O O P ----------------------
     else if (MQTTStatus == 1){
       if (mqttPubSubClient.connected ()){ 
         MQTTStatus = 2; //MQTT just connected
+        //boot/new connect = true; ----------------------------------------------------------------------------------------------------BOOT MSG BUFFER ----------------------------------------------------------------------------------
         #ifdef DEBUG_UART_ENABLED 
           SerialDebug.println(" MQTT just connected");
         #endif
@@ -862,6 +864,7 @@ void loop() { // -------------------------------- L O O P ----------------------
               goto end_check_all_transmitted_for_loop; //break; is not working correct //to start new timing for next transmit
             } 
             else { //Nothing to send from buffer, epoch completed
+              //if () - ----------------------------------------------------------------------------------------------------BOOT MSG BUFFER ----------------------------------------------------------------------------------
               #ifdef DEBUG_UART_ENABLED 
                 //SerialDebug.print ("Nothing to send from buffer, epoch completed ");
                 //SerialDebug.println (rTCMTransmitLoopBufferTXEpoch);
