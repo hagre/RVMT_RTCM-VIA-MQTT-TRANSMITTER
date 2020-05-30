@@ -1,5 +1,11 @@
-# RVMT-RTCM-VIA-MQTT-TRANSMITTER-
+# RVMT (RTCM-VIA-MQTT-TRANSMITTER)
 INFO: This Software is made for my private use. I like to share, but for further details read the LICENCE file! (GPL3)
+
+Check:  
+
+Protocol https://github.com/hagre/RVMP_RTCM-VIA-MQTT-PROTOCOL 
+
+Caster is on https://github.com/hagre/RVMT_RTCM-VIA-MQTT-CASTER
 
 RVMT (RTCM VIA MQTT TRANSMITTER) is using the MQTT protocol (as a secure and opensource alternative to NTRIP) to get RTK correction data for my rover GPS units.
 As a target system i will use https://github.com/farmerbriantee/AgOpenGPS.
@@ -35,7 +41,10 @@ Hardware in use:
 -Ardusimple "simpleRTK2B v1.1" board with u-blox ANN-MB-00 Antenna for GNSS Dual Band
 
 Big thanks to the arduino community for making ths all possible.
-I have to anounce that an external libarie is used: knolleary/pubsubclient  (licensed under the MIT License). Check https://github.com/knolleary/pubsubclient
+
+I have to anounce that an external libarie is used: 
+knolleary/pubsubclient  (licensed under the MIT License). 
+Check https://github.com/knolleary/pubsubclient
 
 During research for this project, i found some projects working on ths promissing concept.
 
