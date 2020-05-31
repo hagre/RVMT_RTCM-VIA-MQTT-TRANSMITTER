@@ -1,5 +1,5 @@
 # RVMT (RTCM-VIA-MQTT-TRANSMITTER)
-INFO: This Software is made for my private use. I like to share, but for further details read the LICENCE file! (GPL3)
+INFO: This Software is made for my private use. I like to share, but for further details read the LICENCE file! (GNU GPL V3)
 
 Check:  
 
