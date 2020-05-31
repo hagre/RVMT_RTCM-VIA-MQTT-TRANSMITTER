@@ -156,7 +156,7 @@ by hagre
 // -------------------------------- Begin of Program --------------------------------------------
 //include libraries
 #include <Arduino.h>
-#include "mysimpletimer.h"
+#include "verysimpletimer.h"
 
 //sanitycheck
 #if defined(SERVER_ROOF_NOTE) && defined (CLIENT_ROVER_NOTE)
@@ -182,7 +182,7 @@ by hagre
 
 #ifdef DEBUG_UART_ENABLED
   uint16_t debug_count = 0;
-  MySimpleTimer DebugLoopTimer;
+  VerySimpleTimer DebugLoopTimer;
   #ifndef USB_CONNECTED_NODE
     #error "DEBUG_UART_ENABLED needs USB_CONNECTED_NODE to be configured"
   #endif
@@ -191,10 +191,6 @@ by hagre
 #ifndef LAN_CONNECTED_NODE
   #error "ERROR: select at least one: WIFI or ETHERNET"
 #endif
-
-//include libraries
-#include <Arduino.h>
-#include "mysimpletimer.h"
 
 #ifdef ESP32_NODE
   #define UART0RX 3 //ESP32 GPIOs
@@ -258,10 +254,10 @@ by hagre
 
   #ifdef WIFI_CONNECTED_NODE
     #include <WiFi.h>
+    #include "SyncWifiConnectionESP32.h"
+    SyncWifiConnectionESP32 SyncWifiConnection;
     const char* ssid     = YOUR_WIFI_SSID; 
     const char* password = YOUR_WIFI_PASSWORD;
-    MySimpleTimer WIFIWaitForConnectionTimer;
-    MySimpleTimer WIFIWaitForReconnectingTimer;
 
     #ifdef MQTT_VIA_SECURE_WIFI_NODE
       #include <WiFiClientSecure.h>
@@ -299,13 +295,13 @@ by hagre
     #define RTCM_UART_TX UART2TX 
   #endif
   HardwareSerial SerialRTCM(RTCM_UART_HARDWARE_PORT);
-  MySimpleTimer MQTTWaitForConnectionTimer;
-  MySimpleTimer MQTTWaitForReconnectionTimer;
-  MySimpleTimer MQTTWaitBetweenSendingMsg;
-  MySimpleTimer RTCMTransmit1005Timer;
+  VerySimpleTimer MQTTWaitForConnectionTimer;
+  VerySimpleTimer MQTTWaitForReconnectionTimer;
+  VerySimpleTimer MQTTWaitBetweenSendingMsg;
+  VerySimpleTimer RTCMTransmit1005Timer;
   int8_t MQTTStatus = -5; //Connected to MQTT broker // -5 init, -3 LAN just disconnected, -2 just disconnected, -1 wait to reconnect, 0 disconnected, 1 connecting, 2 just connected, 3 subscribing, 4 subscribed and connected
-  #include <rtcmstreaminput.h>
-  RTCMStreamInput RTCMStream;    
+  #include <rtcmstreamsplitter.h>
+  RTCMStreamSplitter RTCMStream;    
 #endif
 
 void receivedMQTTCallback(char* topic, byte* payload, unsigned int length) {
@@ -314,7 +310,7 @@ void receivedMQTTCallback(char* topic, byte* payload, unsigned int length) {
       if (((char)payload[1]) == 'N'){
         rTCMviaMQTTisActive = true;
         #ifdef DEBUG_UART_ENABLED
-          SerialDebug.println("Message received: ON NNNNNNNNNNNNNNNNNNN");
+          SerialDebug.println("Message received: ON NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN");
         #endif
       }
     }
@@ -323,7 +319,7 @@ void receivedMQTTCallback(char* topic, byte* payload, unsigned int length) {
         //if (((char)payload[2]) == 'F'){
           rTCMviaMQTTisActive = false;
           #ifdef DEBUG_UART_ENABLED
-            SerialDebug.println("Message received: OFF FFFFFFFFFFFFFFFFF");
+            SerialDebug.println("Message received: OFF FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF ");
           #endif
         //}
       }
@@ -376,8 +372,6 @@ void setup() { // -------------------------------- S E T U P -------------------
         //SerialDebug.println(WiFi.getAutoReconnect());
         SerialDebug.println(WiFi.status());
       #endif  
-      WIFIWaitForConnectionTimer.setIntervalMs (WIFI_WAIT_FOR_CONNECTION); 
-      WIFIWaitForReconnectingTimer.setIntervalMs (WIFI_WAIT_FOR_RECONNECTION); 
     #endif 
     #ifdef ETHERNET_CONNECTED_NODE
       #ifdef DEBUG_UART_ENABLED
@@ -403,10 +397,6 @@ void setup() { // -------------------------------- S E T U P -------------------
   mqttPubSubClient.setServer(IP_MQTT_BROKER, MQTT_CONNECTION_PORT);
   mqttPubSubClient.setCallback(receivedMQTTCallback);
   mqttPubSubClient.setBufferSize(MQTT_MAX_PACKET_SIZE);
-  #ifdef DEBUG_UART_ENABLED
-    SerialDebug.print ("MQTT Buffersize: ");
-    SerialDebug.println (mqttPubSubClient.getBufferSize ());
-  #endif
   mqttPubSubClient.setKeepAlive(MQTT_SET_KEEPALIVE);
   mqttPubSubClient.setSocketTimeout(MQTT_SET_SOCKET_TIMEOUT);
 
@@ -550,75 +540,7 @@ void loop() { // -------------------------------- L O O P ----------------------
   #ifdef LAN_CONNECTED_NODE
     //WIFI CONNECTION MANAGER
     #ifdef WIFI_CONNECTED_NODE
-      int8_t WIFIStatus = WiFi.status();
-      if (LANStatus == -5){ //First Loop after boot
-        #ifdef DEBUG_UART_ENABLED
-          SerialDebug.println (" First loop after boot");
-        #endif
-        WIFIWaitForConnectionTimer.resetTimingNow (millis());
-        LANStatus = 0; //disconnected
-      }
-      else if (LANStatus == -2){ //First Loop after WIFI just disconnected
-        WIFIWaitForReconnectingTimer.resetTimingNow (millis());
-        LANStatus = -1; //wait to reconnect
-        #ifdef DEBUG_UART_ENABLED
-          SerialDebug.println (" First Loop after WIFI just disconnected");
-        #endif
-      }
-      else if (LANStatus == -1){ //wait to reconnect still disconnected
-        if (WIFIWaitForReconnectingTimer.getStatus(millis()) >= 0){ //Chech if ready for reconnect
-          LANStatus = 0;  //disconnected
-          #ifdef DEBUG_UART_ENABLED
-            SerialDebug.println (" Timer elapsed - time to connect again");
-          #endif
-        }
-      }
-      else if (LANStatus == 0){ //disconnected and time to connect again
-        WiFi.begin(YOUR_WIFI_SSID, YOUR_WIFI_PASSWORD);
-        WIFIWaitForConnectionTimer.resetTimingNow (millis()); //Start new timing for NEW connection
-        LANStatus = 1; //connecting
-        #ifdef DEBUG_UART_ENABLED
-          SerialDebug.println (" Starting WIFI connection");
-        #endif
-      }
-      else if (LANStatus == 1){ //connecting
-        if (WIFIStatus == WL_CONNECTED){ //WIFI connected
-          LANStatus = 2; //connected to LAN
-          #ifdef DEBUG_UART_ENABLED
-            SerialDebug.println (" Just WIFI Connected");
-          #endif  
-        }
-        else if (WIFIWaitForConnectionTimer.getStatus(millis()) >= 0){ //Chech if try to connect takes too long
-          WiFi.disconnect();
-          LANStatus = -2; //just disconnected
-          #ifdef DEBUG_UART_ENABLED
-            SerialDebug.println (" It took to long => WIFI Disconnect");
-          #endif
-        }
-        else {
-          #ifdef DEBUG_UART_ENABLED
-            //SerialDebug.print (".");
-          #endif
-        }
-      }
-      else if (LANStatus == 2){ //just connected
-        LANStatus = 3; //still connected to LAN
-        #ifdef DEBUG_UART_ENABLED
-          SerialDebug.println (" Again, this important info: WIFI connected");
-        #endif 
-      }
-      else if (LANStatus == 3){ //still connected
-        #ifdef DEBUG_UART_ENABLED
-          //SerialDebug.println ("WIFI still connected");
-        #endif
-        if (WIFIStatus != WL_CONNECTED){ //WIFI NOT connected anymore
-          WiFi.disconnect();
-          LANStatus = -2; //just disconnected
-          #ifdef DEBUG_UART_ENABLED
-            SerialDebug.println (" WIFI connection lost!");
-          #endif
-        }
-      }
+      LANStatus = SyncWifiConnection.Loop(millis());
     #endif
 
     //LAN CONNECTION MANAGER
