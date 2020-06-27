@@ -10,7 +10,7 @@ by hagre
 06 2019 - 2020 
 */
 #define VERSION 2
-#define SUB_VERSION 2
+#define SUB_VERSION 3
 
 //Select Type of equipment
 #define SERVER_ROOF_NOTE
@@ -115,10 +115,10 @@ by hagre
     #endif
   #endif 
   #ifdef MQTT_VIA_SECURE_WIFI_NODE
-    #define MQTT_CONNECTION_PORT 8883 //8882 = not secure on LAN only // 8883 TLS //config as required
+    #define MQTT_CONNECTION_PORT 8883 // 8883 TLS //config as required
   #endif
   #ifdef MQTT_VIA_NOT_SECURE_WIFI_NODE
-    #define MQTT_CONNECTION_PORT 8882 //8882 = not secure on LAN only // 8883 TLS //config as required
+    #define MQTT_CONNECTION_PORT 8882 //8882 = not secure on LAN only //config as required
   #endif
   #define MQTT_SET_KEEPALIVE 15 //15 = 15sec
   #define MQTT_SET_SOCKET_TIMEOUT 10 // 10sec
@@ -142,6 +142,10 @@ by hagre
   #define RTCM_UART_HARDWARE_PORT 2 //config as required //set 2, USB == 0, 1 == UART1 F9P, 2 == UART2 F9P rewire rquired not fitting on ardusimple
   #define RTCM_BUFFER_SIZE 1024 //config as required
   #define RTCM_LOOP_BUFFER_SIZE 6 //config as required // •  RTCM 1005 Stationary RTK reference station ARP•  RTCM 1074 GPS MSM4•  RTCM 1084 GLONASS MSM4•  RTCM 1094 Galileo MSM4•  RTCM 1124 BeiDou MSM4•  RTCM 1230 GLONASS code-phase biases
+
+  #define TOPIC_MSG_BUFFER_LENGTH 30
+  #define CONTENT_MSG_BUFFER_LENGTH 50
+  #define NR_OF_PROTOCOL_MSG_BUFFER 10
 #endif
 
 #ifdef USB_CONNECTED_NODE 
@@ -231,6 +235,15 @@ by hagre
     uint16_t msgLength;
   } rTCMTransmitLoopBuffer [RTCM_LOOP_BUFFER_SIZE];
 
+  struct RoofNodeTransmitBuffer_t {
+    bool readyToSend;
+    bool sending;
+    bool alreadySent;
+    byte topicMsg [TOPIC_MSG_BUFFER_LENGTH];
+    byte contentMsg [CONTENT_MSG_BUFFER_LENGTH]; 
+    uint16_t msgLength;
+  } roofNodeTransmitBuffer [NR_OF_PROTOCOL_MSG_BUFFER];
+
   unsigned long rTCMTransmitLoopBufferRXEpoch = 0;
   unsigned long rTCMTransmitLoopBufferTXEpoch = 0;
 
@@ -310,7 +323,7 @@ void receivedMQTTCallback(char* topic, byte* payload, unsigned int length) {
       if (((char)payload[1]) == 'N'){
         rTCMviaMQTTisActive = true;
         #ifdef DEBUG_UART_ENABLED
-          SerialDebug.println("Message received: ON NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN");
+          SerialDebug.println("Message received: ON NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN");
         #endif
       }
     }
@@ -319,7 +332,7 @@ void receivedMQTTCallback(char* topic, byte* payload, unsigned int length) {
         //if (((char)payload[2]) == 'F'){
           rTCMviaMQTTisActive = false;
           #ifdef DEBUG_UART_ENABLED
-            SerialDebug.println("Message received: OFF FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF ");
+            SerialDebug.println("Message received: OFF FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF ");
           #endif
         //}
       }
@@ -361,10 +374,7 @@ void setup() { // -------------------------------- S E T U P -------------------
 
   #ifdef LAN_CONNECTED_NODE
     #ifdef WIFI_CONNECTED_NODE 
-      WiFi.mode(WIFI_STA);
-      WiFi.config(Node_IP, gateway, subnet, gateway);// primDNS, secDNS);
-      WiFi.setHostname(YOUR_WIFI_HOSTNAME);
-      WiFi.begin(YOUR_WIFI_SSID, YOUR_WIFI_PASSWORD);
+      SyncWifiConnection.InitAndBegin (WIFI_STA, Node_IP, gateway, subnet, gateway, YOUR_WIFI_HOSTNAME, YOUR_WIFI_SSID, YOUR_WIFI_PASSWORD);
       #ifdef DEBUG_UART_ENABLED
         SerialDebug.println("WIFI configured");
         SerialDebug.println(WiFi.localIP());
@@ -429,6 +439,20 @@ void setup() { // -------------------------------- S E T U P -------------------
       rTCMTransmitLoopBuffer[i].readyToSend = false;
       rTCMTransmitLoopBuffer[i].sending = false;
     }
+
+    //roofNodeTransmitBuffer[0].topicMsg = "Version";
+    //roofNodeTransmitBuffer[1].topicMsg = ;
+    //roofNodeTransmitBuffer[2].topicMsg = ;
+    //roofNodeTransmitBuffer[3].topicMsg = ;
+    //roofNodeTransmitBuffer[4].topicMsg = ;
+
+    for (int i = 0; i < NR_OF_PROTOCOL_MSG_BUFFER; i++){
+      roofNodeTransmitBuffer[i].alreadySent = true; //to start sending of first msg
+      roofNodeTransmitBuffer[i].readyToSend = false;
+      roofNodeTransmitBuffer[i].sending = false;
+    }
+
+    //RoofNodeTransmitBuffer_t
   #endif
 
   #ifdef CLIENT_ROVER_NOTE
