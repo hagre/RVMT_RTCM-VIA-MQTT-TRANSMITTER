@@ -8,6 +8,12 @@ v2.1 - clean up code
 v2.2 - move RTCMStreamInput to github as RTCMStreamSplitter library and include 
     - move MySimpleTimert to github as VerySimpleTimer library and include 
     - create SyncWiFIConnectionESP32_Library on github and include 
+v.2.3 - create SyncMQTTConnectionESP32_Library on github and include (move parts of code)
+    - preperation to support RVMP-V0.2
+    - improve new epoch detection
+    - MSM 4 and 7 support 
+    - Output some Status variables via msg buffer
+    - restructure some code into functions
 
 
 
