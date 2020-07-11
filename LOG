@@ -14,6 +14,8 @@ v.2.3 - create SyncMQTTConnectionESP32_Library on github and include (move parts
     - MSM 4 and 7 support 
     - Output some Status variables via msg buffer
     - restructure some code into functions
+    - implement some more protocol features - 2x Version output and RTCM frequency of each MsgType
+    - still debuging
 
 
 

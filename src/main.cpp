@@ -131,12 +131,6 @@ by hagre
   #define MQTT_MAX_TIME_FOR_RESEND_MSG 1000 // 10000ms //config as required
   #define MQTT_MSG_RETAINED false // false //config as required
 
-  #define MQTT_LASTWILL_TOPIC "TEST/"
-  #define MQTT_LASTWILL_QOS 0
-  #define MQTT_LASTWILL_RETAIN 0
-  #define MQTT_LASTWILL_MSG "OFFLINE"
-
-  
   #ifndef MQTT_RTCM_BASE_NAME
     #define MQTT_RTCM_BASE_NAME "TEST01" //config as required 
   #endif
@@ -146,18 +140,27 @@ by hagre
   #ifndef MQTT_RTCM_TOPIC
     #define MQTT_RTCM_TOPIC "/NTRIP/Base/XYZ01/RTCM/" //config as required 
   #endif
+
+  #define MQTT_LASTWILL_QOS 0
+  #define MQTT_LASTWILL_RETAIN 0
+  #define MQTT_LASTWILL_MSG "OFFLINE"
+  
   #define MQTT_BUFFER_SIZE 1024
   #define MQTT_MAX_PACKET_SIZE MQTT_BUFFER_SIZE
 
-  #define RTCM_1005_DATA_INTERVALL 20000 //20000
+  #define RTCM_1005_DATA_INTERVAL 15000 //20000
   #define RTCM_VIA_MQTT_UART_TRANSMITTING_BOUD 230400 //config as required 
   #define RTCM_UART_HARDWARE_PORT 2 //config as required //set 2, USB == 0, 1 == UART1 F9P, 2 == UART2 F9P rewire rquired not fitting on ardusimple
   #define RTCM_BUFFER_SIZE 1024 //config as required
-  #define RTCM_LOOP_BUFFER_SIZE 10 //config as required // •  RTCM 1005 Stationary RTK reference station ARP•  RTCM 1074 and 1077 GPS •  RTCM 1084 and 1087 GLONASS •  RTCM 1094 ans 1097 Galileo •  RTCM 1124 and 1127 BeiDou•  RTCM 1230 GLONASS code-phase biases
+  #define RTCM_LOOP_BUFFER_SIZE 15 //config as required // •  RTCM 1005 Stationary RTK reference station ARP•  RTCM 1074 and 1077 GPS •  RTCM 1084 and 1087 GLONASS •  RTCM 1094 ans 1097 Galileo •  RTCM 1124 and 1127 BeiDou•  RTCM 1230 GLONASS code-phase biases
 
-  #define TOPIC_MSG_BUFFER_LENGTH 30
-  #define CONTENT_MSG_BUFFER_LENGTH 50
-  #define NR_OF_PROTOCOL_MSG_BUFFER 10
+  #define TOPIC_MSG_BUFFER_LENGTH 100
+  #define CONTENT_MSG_BUFFER_LENGTH 100
+  #define NR_OF_PROTOCOL_MSG_BUFFER 20
+
+  #define RTCM_MSG_CHECK_IN_USE_INTERVAL 1000 //
+  #define RTCM_MAX_IN_USE_DELAY 65000
+  #define RTCM_IN_USE_MSG_UPDATE_DELAY 1000 //10000 
 #endif
 
 #ifdef USB_CONNECTED_NODE 
@@ -238,25 +241,36 @@ by hagre
 #ifdef LAN_CONNECTED_NODE  
 
   #ifdef SERVER_ROOF_NOTE
+
+    String lastWillTopic;
+
     struct RTCMTransmitBuffer_t {
-      bool readyToSend;
-      bool sending;
-      bool alreadySent;
+      bool readyToSend = false;
+      bool sending = false;
+      bool alreadySent = true; //clear to input first msg, to start sending
       unsigned long nrOfInternalEpoche;
-      unsigned millisTimeOfReceive;
-      int16_t typeOfRTCMMsg;
+      unsigned long millisTimeOfReceiveForSending;
+      unsigned long millisTimeOfReceiveForCalculation;
+      unsigned long lastRTCMinUseUpdateTime;
+      int16_t typeOfRTCMMsg = 0;
       byte RTCMMsg [RTCM_BUFFER_SIZE]; 
       uint16_t msgLength;
+      bool isUsedTypeOfMsg = false;
+      int16_t averageReceiveIntervalCalculated = 0;
+      int16_t averageReceiveIntervalSent = -1;
     } rTCMTransmitLoopBuffer [RTCM_LOOP_BUFFER_SIZE];
 
     struct RoofNodeTransmitBuffer_t {
-      bool readyToSend;
-      bool sending;
-      bool alreadySent;
+      bool readyToSend = false;
+      bool sending = false;
+      bool alreadySent = true; //clear to input first msg, to start sending
+      int16_t typeOfRTCMMsg = 0;
       byte topicMsg [TOPIC_MSG_BUFFER_LENGTH];
       uint16_t topicLength;
       byte contentMsg [CONTENT_MSG_BUFFER_LENGTH]; 
       uint16_t msgLength;
+      uint8_t qOS;
+      bool retain;
     } roofNodeTransmitBuffer [NR_OF_PROTOCOL_MSG_BUFFER];
 
     unsigned long rTCMTransmitLoopBufferRXEpoch = 0;
@@ -326,6 +340,7 @@ by hagre
   HardwareSerial SerialRTCM(RTCM_UART_HARDWARE_PORT);
   VerySimpleTimer MQTTWaitBetweenSendingMsg;
   VerySimpleTimer RTCMTransmit1005Timer;
+  VerySimpleTimer RTCMMsgCheckInUseTimer;
   int8_t MQTTStatus = -5; //Connected to MQTT broker // -5 init, -3 LAN just disconnected, -2 just disconnected, -1 wait to reconnect, 0 disconnected, 1 connecting, 2 just connected, 3 subscribing, 4 subscribed and connected
   #include <rtcmstreamsplitter.h>
   RTCMStreamSplitter RTCMStream;    
@@ -364,6 +379,41 @@ bool ReadRTCMSerialToBuffer (){
       unsigned long millisOfInput = millis();
       for (int x = 0; x < RTCM_LOOP_BUFFER_SIZE; x++){
         if (typeOfMsg == rTCMTransmitLoopBuffer[x].typeOfRTCMMsg){
+            #ifdef DEBUG_UART_ENABLED 
+              SerialDebug.print (" this nbr is ");
+              SerialDebug.println (x);
+            #endif
+
+          //for average calculation (MNTP list)
+          if (rTCMTransmitLoopBuffer[x].isUsedTypeOfMsg){ //was already in use
+            #ifdef DEBUG_UART_ENABLED 
+              SerialDebug.print (" rTCMTransmitLoopBuffer is Used ");
+            #endif
+            if (rTCMTransmitLoopBuffer[x].typeOfRTCMMsg == 1005){
+              rTCMTransmitLoopBuffer[x].averageReceiveIntervalCalculated = RTCM_1005_DATA_INTERVAL/1000;
+              #ifdef DEBUG_UART_ENABLED
+                SerialDebug.print (" Calculated Interval 1005 ");
+                SerialDebug.println (rTCMTransmitLoopBuffer[x].averageReceiveIntervalCalculated);
+              #endif
+            }
+            else {
+              float calculation = (millisOfInput - rTCMTransmitLoopBuffer[x].millisTimeOfReceiveForCalculation) / 1000.0;
+              rTCMTransmitLoopBuffer[x].averageReceiveIntervalCalculated = round (calculation);
+              #ifdef DEBUG_UART_ENABLED
+                //SerialDebug.print (calculation);
+                //SerialDebug.print (" Calculated Interval ");
+                //SerialDebug.println (rTCMTransmitLoopBuffer[x].averageReceiveIntervalCalculated);
+              #endif
+            }   
+          }
+          else { //was not in use, but is now
+            rTCMTransmitLoopBuffer[x].isUsedTypeOfMsg = true;
+            #ifdef DEBUG_UART_ENABLED 
+              SerialDebug.print (" Call rTCMTransmitLoopBuffer used now ");
+            #endif
+          }
+          rTCMTransmitLoopBuffer[x].millisTimeOfReceiveForCalculation = millisOfInput;
+
           if (rTCMTransmitLoopBufferRXEpoch - rTCMTransmitLoopBuffer[x].nrOfInternalEpoche > 0){
             rTCMTransmitLoopBufferRXEpoch++;
             #ifdef DEBUG_UART_ENABLED 
@@ -379,14 +429,15 @@ bool ReadRTCMSerialToBuffer (){
               }
             #endif
           }
+
           if (rTCMTransmitLoopBuffer[x].alreadySent){ //free to use
 
             #ifdef DEBUG_UART_ENABLED 
               //SerialDebug.print (" Time since last saving this type of msg ");
-              //SerialDebug.println (millisOfInput - rTCMTransmitLoopBuffer[i].millisTimeOfReceive);
+              //SerialDebug.println (millisOfInput - rTCMTransmitLoopBuffer[i].millisTimeOfReceiveForSending);
             #endif
 
-            rTCMTransmitLoopBuffer[x].millisTimeOfReceive = millisOfInput;
+            rTCMTransmitLoopBuffer[x].millisTimeOfReceiveForSending = millisOfInput;
             rTCMTransmitLoopBuffer[x].typeOfRTCMMsg = typeOfMsg;
             for (uint16_t z = 0; z < RTCMStream.outputStreamLength; z++){
               rTCMTransmitLoopBuffer[x].RTCMMsg[z] = RTCMStream.outputStream[z];
@@ -523,7 +574,7 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
               SerialDebug.print (check);
               SerialDebug.println (" MQTT Pub NOT OK, try again ");
             #endif 
-            if (millisOfOutput - rTCMTransmitLoopBuffer[i].millisTimeOfReceive > MQTT_MAX_TIME_FOR_RESEND_MSG){ // to wait longer is not usefull, next msg need the space
+            if (millisOfOutput - rTCMTransmitLoopBuffer[i].millisTimeOfReceiveForSending > MQTT_MAX_TIME_FOR_RESEND_MSG){ // to wait longer is not usefull, next msg need the space
               rTCMTransmitLoopBuffer[i].alreadySent = true; // stop blocking variable for new input
               rTCMTransmitLoopBuffer[i].sending = false; // stop blocking variable for new input
               rTCMTransmitLoopBuffer[i].readyToSend = false; // stop blocking variable for new input
@@ -542,8 +593,8 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
 
       for (int i = 0; i < NR_OF_PROTOCOL_MSG_BUFFER; i++){// check complete buffer (roofNodeTransmitBuffer)
         #ifdef DEBUG_UART_ENABLED 
-          SerialDebug.print (roofNodeTransmitBuffer[i].readyToSend);
-          SerialDebug.print (" TransmittBufferSend, ");
+          //SerialDebug.print (roofNodeTransmitBuffer[i].readyToSend);
+          //SerialDebug.print (" TransmittBufferSend, ");
         #endif
 
         if (roofNodeTransmitBuffer[i].readyToSend){
@@ -561,7 +612,9 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
           }
 
           int16_t check = 0;
-          check = syncMQTTConnection.publish ((char*)MQTTMsgTopic.c_str(), pbMQTTMsg, roofNodeTransmitBuffer[i].msgLength, MQTT_MSG_RETAINED);
+          check = syncMQTTConnection.publish ((char*)MQTTMsgTopic.c_str(), pbMQTTMsg, roofNodeTransmitBuffer[i].msgLength, roofNodeTransmitBuffer[i].retain);
+          //not supported by PubSubClient Library
+          //check = syncMQTTConnection.publish ((char*)MQTTMsgTopic.c_str(), pbMQTTMsg, roofNodeTransmitBuffer[i].msgLength, roofNodeTransmitBuffer[i].qOS, roofNodeTransmitBuffer[i].retain);
           #ifdef DEBUG_UART_ENABLED 
             //SerialDebug.print (" Check ");
             //SerialDebug.print (check);
@@ -587,7 +640,7 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
               SerialDebug.print (check);
               SerialDebug.println (" MQTT Pub NOT OK, try again ");
             #endif 
-            if (millisOfOutput - rTCMTransmitLoopBuffer[i].millisTimeOfReceive > MQTT_MAX_TIME_FOR_RESEND_MSG){ // to wait longer is not usefull, next msg need the space
+            if (millisOfOutput - rTCMTransmitLoopBuffer[i].millisTimeOfReceiveForSending > MQTT_MAX_TIME_FOR_RESEND_MSG){ // to wait longer is not usefull, next msg need the space
               roofNodeTransmitBuffer[i].alreadySent = true; // stop blocking variable for new input
               roofNodeTransmitBuffer[i].sending = false; // stop blocking variable for new input
               roofNodeTransmitBuffer[i].readyToSend = false; // stop blocking variable for new input
@@ -614,11 +667,52 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
   return false; // MQTT and LAN not connected
 }
 
+void SetRoofNodeTransmitBuffer (uint16_t nbr, String topic, String msg, int16_t typeOfRTCMMsg, uint8_t qOS, bool retain){
+  for (uint16_t i = 0; i < topic.length(); i++){
+    roofNodeTransmitBuffer[nbr].topicMsg[i] = byte(topic[i]);
+  }
+  for (uint16_t i = 0; i < msg.length(); i++){
+    roofNodeTransmitBuffer[nbr].contentMsg[i] = msg[i];
+  }
+  roofNodeTransmitBuffer[nbr].topicLength = topic.length();
+  roofNodeTransmitBuffer[nbr].msgLength = msg.length();
+  roofNodeTransmitBuffer[nbr].qOS = qOS;
+  roofNodeTransmitBuffer[nbr].typeOfRTCMMsg = typeOfRTCMMsg;
+  roofNodeTransmitBuffer[nbr].retain = retain;
+  roofNodeTransmitBuffer[nbr].alreadySent = false;
+  roofNodeTransmitBuffer[nbr].readyToSend = true;
+}
+
+void ChangeFloatMsgInRoofNodeTransmitBuffer (uint16_t nbr, int16_t msg, bool retain){
+  char transformMsg [5];
+  snprintf(transformMsg, sizeof(transformMsg), "%d", msg);
+  String transformMsgString (transformMsg);
+
+  for (uint16_t i = 0; i < transformMsgString.length(); i++){
+    roofNodeTransmitBuffer[nbr].contentMsg[i] = transformMsgString[i];
+  }
+  roofNodeTransmitBuffer[nbr].retain = retain;
+  roofNodeTransmitBuffer[nbr].alreadySent = false;
+  roofNodeTransmitBuffer[nbr].readyToSend = true;
+}
+
+void ChangeStringMsgInRoofNodeTransmitBuffer (uint16_t nbr, String msg, bool retain){
+
+  for (uint16_t i = 0; i < msg.length(); i++){
+    roofNodeTransmitBuffer[nbr].contentMsg[i] = msg[i];
+  }
+  roofNodeTransmitBuffer[nbr].msgLength = msg.length();
+  roofNodeTransmitBuffer[nbr].retain = retain;
+  roofNodeTransmitBuffer[nbr].alreadySent = false;
+  roofNodeTransmitBuffer[nbr].readyToSend = true;
+}
+
 void receivedMQTTCallback(char* topic, byte* payload, unsigned int length) {
   #ifdef SERVER_ROOF_NOTE
     if (((char)payload[0]) == 'O'){ //ON
       if (((char)payload[1]) == 'N'){
         rTCMviaMQTTisActive = true;
+        ChangeStringMsgInRoofNodeTransmitBuffer (0, "ONLINE", true); // change Status indication
         #ifdef DEBUG_UART_ENABLED
           SerialDebug.println("Message received: ON NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN");
         #endif
@@ -628,6 +722,7 @@ void receivedMQTTCallback(char* topic, byte* payload, unsigned int length) {
       if (((char)payload[1]) == 'F'){
         //if (((char)payload[2]) == 'F'){
           rTCMviaMQTTisActive = false;
+          ChangeStringMsgInRoofNodeTransmitBuffer (0, "ONLINE", false); // change Status indication
           #ifdef DEBUG_UART_ENABLED
             SerialDebug.println("Message received: OFF FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF ");
           #endif
@@ -661,19 +756,6 @@ void receivedMQTTCallback(char* topic, byte* payload, unsigned int length) {
   #endif
 }
 
-void SetRoofNodeTransmitBuffer (uint16_t nbr, String topic, String msg){
-  for (uint16_t i = 0; i < topic.length(); i++){
-    roofNodeTransmitBuffer[nbr].topicMsg[i] = byte(topic[i]);
-  }
-  for (uint16_t i = 0; i < msg.length(); i++){
-    roofNodeTransmitBuffer[nbr].contentMsg[i] = msg[i];
-  }
-  roofNodeTransmitBuffer[nbr].topicLength = topic.length();
-  roofNodeTransmitBuffer[nbr].msgLength = msg.length();
-  roofNodeTransmitBuffer[nbr].alreadySent = false;
-  roofNodeTransmitBuffer[nbr].readyToSend = true;
-}
-
 void setup() { // -------------------------------- S E T U P --------------------------------------------
 
   #ifdef DEBUG_UART_ENABLED
@@ -684,14 +766,10 @@ void setup() { // -------------------------------- S E T U P -------------------
 
   #ifdef LAN_CONNECTED_NODE
     #ifdef WIFI_CONNECTED_NODE 
-      SyncWifiConnection.InitAndBegin (WIFI_STA, Node_IP, gateway, subnet, gateway, YOUR_WIFI_HOSTNAME, YOUR_WIFI_SSID, YOUR_WIFI_PASSWORD);
       #ifdef DEBUG_UART_ENABLED
-        //SerialDebug.println("WIFI configured");
-        //SerialDebug.println(WiFi.localIP());
-        //SerialDebug.println(WiFi.getHostname());
-        //SerialDebug.println(WiFi.getAutoReconnect());
-        //SerialDebug.println(WiFi.status());
-      #endif  
+        SerialDebug.println ("Starting WIFI");
+      #endif
+      SyncWifiConnection.InitAndBegin (WIFI_STA, Node_IP, gateway, subnet, gateway, YOUR_WIFI_HOSTNAME, YOUR_WIFI_SSID, YOUR_WIFI_PASSWORD); 
     #endif 
 
     #ifdef ETHERNET_CONNECTED_NODE
@@ -715,15 +793,24 @@ void setup() { // -------------------------------- S E T U P -------------------
     //Nothing todo
   #endif
 
-  syncMQTTConnection.setMQTTConnection (mqttPubSubClientId, mqttUsername, mqttPassword, true, mqttLANClient, HOSTNAME_OFF_MQTT_BROKER, MQTT_CONNECTION_PORT, MQTT_MAX_PACKET_SIZE, MQTT_SET_KEEPALIVE, MQTT_SET_SOCKET_TIMEOUT);
-  syncMQTTConnection.setMQTTLastWill (MQTT_LASTWILL_TOPIC, MQTT_LASTWILL_QOS, MQTT_LASTWILL_RETAIN, MQTT_LASTWILL_MSG);
-  syncMQTTConnection.setMQTTCallback (receivedMQTTCallback);
-  syncMQTTConnection.addSubscriptionToTable (0, (byte*)("TEST/"), 5);
-  syncMQTTConnection.addSubscriptionToTable (1, (byte*)("TEST2/"), 6);
-
   #ifdef SERVER_ROOF_NOTE
-    RTCMTransmit1005Timer.setIntervalMs (RTCM_1005_DATA_INTERVALL);
+
+    lastWillTopic = "RTK/Base/";
+    lastWillTopic = lastWillTopic + MQTT_RTCM_BASE_NAME;
+    lastWillTopic = lastWillTopic + "/Status/Operation/";
+
+    syncMQTTConnection.setMQTTConnection (mqttPubSubClientId, mqttUsername, mqttPassword, true, mqttLANClient, HOSTNAME_OFF_MQTT_BROKER, MQTT_CONNECTION_PORT, MQTT_MAX_PACKET_SIZE, MQTT_SET_KEEPALIVE, MQTT_SET_SOCKET_TIMEOUT);
+    syncMQTTConnection.setMQTTLastWill ((char*) lastWillTopic.c_str(), MQTT_LASTWILL_QOS, MQTT_LASTWILL_RETAIN, MQTT_LASTWILL_MSG);
+    syncMQTTConnection.setMQTTCallback (receivedMQTTCallback);
+    syncMQTTConnection.addSubscriptionToTable (0, (byte*)("TEST/"), 5);
+    syncMQTTConnection.addSubscriptionToTable (1, (byte*)("TEST2/"), 6);
+
+ 
+    RTCMTransmit1005Timer.setIntervalMs (RTCM_1005_DATA_INTERVAL);
     MQTTWaitBetweenSendingMsg.setIntervalMs (MQTT_WAIT_BETWEEN_SENDING_MSG);
+    RTCMMsgCheckInUseTimer.setIntervalMs (RTCM_MSG_CHECK_IN_USE_INTERVAL);
+
+    RTCMMsgCheckInUseTimer.resetTimingNow(millis());
 
     // initiate Loop buffer variable
     rTCMTransmitLoopBuffer[0].typeOfRTCMMsg = 1005; //RTCM 1005 Stationary RTK reference station ARP
@@ -737,35 +824,88 @@ void setup() { // -------------------------------- S E T U P -------------------
     rTCMTransmitLoopBuffer[8].typeOfRTCMMsg = 1127; //RTCM 1127 BeiDou MSM7
     rTCMTransmitLoopBuffer[9].typeOfRTCMMsg = 1230; //RTCM 1230 GLONASS code-phase biases
 
-    for (int i = 0; i < RTCM_LOOP_BUFFER_SIZE; i++){
-      rTCMTransmitLoopBuffer[i].alreadySent = true; //to start sending of first msg
-      rTCMTransmitLoopBuffer[i].readyToSend = false;
-      rTCMTransmitLoopBuffer[i].sending = false;
-    }
-    
-    //RoofNodeTransmitBuffer_t
-    for (int i = 0; i < NR_OF_PROTOCOL_MSG_BUFFER; i++){
-      roofNodeTransmitBuffer[i].alreadySent = true; //to start sending of first msg
-      roofNodeTransmitBuffer[i].readyToSend = false;
-      roofNodeTransmitBuffer[i].sending = false;
-    }
     String tempTopic, tempValue;
+
     tempTopic = "RTK/Base/";
     tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
-    tempTopic = tempTopic + "/Status/Firmware/";
-    tempValue = "Ver. ";
+    tempTopic = tempTopic + "/Status/Operation/";
+    tempValue = "STBY";
+    SetRoofNodeTransmitBuffer (0, tempTopic, tempValue, 0, 1, true);
+
+    tempTopic = "RTK/Base/";
+    tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
+    tempTopic = tempTopic + "/Status/FirmwareVer/";
+    tempValue = "";
     tempValue = tempValue + VERSION;
     tempValue = tempValue + ".";
     tempValue = tempValue + SUB_VERSION;
-    SetRoofNodeTransmitBuffer (0, tempTopic, tempValue);
+    SetRoofNodeTransmitBuffer (1, tempTopic, tempValue, 0, 1, true);
+
     tempTopic = "RTK/Base/";
     tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
-    tempTopic = tempTopic + "/Status/Protocol/";
-    tempValue = "Ver. ";
+    tempTopic = tempTopic + "/Status/ProtocolVer/";
+    tempValue = "";
     tempValue = tempValue + PROT_VERSION;
     tempValue = tempValue + ".";
     tempValue = tempValue + PROT_SUB_VERSION;
-    SetRoofNodeTransmitBuffer (1, tempTopic, tempValue);
+    SetRoofNodeTransmitBuffer (2, tempTopic, tempValue, 0, 1, true);
+
+    tempTopic = "RTK/Base/";
+    tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
+    tempTopic = tempTopic + "/Status/Error/";
+    tempValue = "Booting";
+    SetRoofNodeTransmitBuffer (3, tempTopic, tempValue, 0, 0, false);
+
+    tempTopic = "RTK/Base/";
+    tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
+    tempTopic = tempTopic + "/1005/";
+    tempValue = "0.0";
+    SetRoofNodeTransmitBuffer (4, tempTopic, tempValue, 1005, 0, false);
+    tempTopic = "RTK/Base/";
+    tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
+    tempTopic = tempTopic + "/1074/";
+    tempValue = "0.0";
+    SetRoofNodeTransmitBuffer (5, tempTopic, tempValue, 1074, 0, false);
+    tempTopic = "RTK/Base/";
+    tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
+    tempTopic = tempTopic + "/1077/";
+    tempValue = "0.0";
+    SetRoofNodeTransmitBuffer (6, tempTopic, tempValue, 1077, 0, false);
+    tempTopic = "RTK/Base/";
+    tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
+    tempTopic = tempTopic + "/1084/";
+    tempValue = "0.0";
+    SetRoofNodeTransmitBuffer (7, tempTopic, tempValue, 1084, 0, false);
+    tempTopic = "RTK/Base/";
+    tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
+    tempTopic = tempTopic + "/1087/";
+    tempValue = "0.0";
+    SetRoofNodeTransmitBuffer (8, tempTopic, tempValue, 1087, 0, false);
+    tempTopic = "RTK/Base/";
+    tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
+    tempTopic = tempTopic + "/1094/";
+    tempValue = "0.0";
+    SetRoofNodeTransmitBuffer (9, tempTopic, tempValue, 1094, 0, false);
+    tempTopic = "RTK/Base/";
+    tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
+    tempTopic = tempTopic + "/1097/";
+    tempValue = "0.0";
+    SetRoofNodeTransmitBuffer (10, tempTopic, tempValue, 1097, 0, false);
+    tempTopic = "RTK/Base/";
+    tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
+    tempTopic = tempTopic + "/1124/";
+    tempValue = "0.0";
+    SetRoofNodeTransmitBuffer (11, tempTopic, tempValue, 1124, 0, false);
+    tempTopic = "RTK/Base/";
+    tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
+    tempTopic = tempTopic + "/1127/";
+    tempValue = "0.0";
+    SetRoofNodeTransmitBuffer (12, tempTopic, tempValue, 1127, 0, false);
+    tempTopic = "RTK/Base/";
+    tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
+    tempTopic = tempTopic + "/1230/";
+    tempValue = "0.0";
+    SetRoofNodeTransmitBuffer (13, tempTopic, tempValue, 1230, 0, false);
 
   #endif
 
@@ -775,6 +915,9 @@ void setup() { // -------------------------------- S E T U P -------------------
 }
 
 void loop() { // -------------------------------- L O O P --------------------------------------------
+
+  //unsigned long loopTime = millis ();
+
   #ifdef DEBUG_UART_ENABLED
     //SerialDebug.println ("LOOP");
   #endif
@@ -811,4 +954,64 @@ void loop() { // -------------------------------- L O O P ----------------------
     MQTTTransmitMsg (MQTTStatus);
   #endif  
 
+
+  unsigned long RTCMCheckLoopTime = millis ();
+  if (RTCMMsgCheckInUseTimer.getStatus (RTCMCheckLoopTime) >= 0){ // wait to check Msg in Use 
+    #ifdef DEBUG_UART_ENABLED 
+      SerialDebug.println (" Check RTCM Msg in use, ");
+    #endif
+    
+    for (int i = 0; i < RTCM_LOOP_BUFFER_SIZE; i++){// check complete buffer (rTCMTransmitLoopBuffer)
+
+      if (rTCMTransmitLoopBuffer[i].isUsedTypeOfMsg){
+        #ifdef DEBUG_UART_ENABLED 
+          SerialDebug.print (" RTCM Msg ");
+          SerialDebug.print (rTCMTransmitLoopBuffer[i].typeOfRTCMMsg);
+          SerialDebug.println (" is in use ");
+        #endif
+      
+        if ((RTCMCheckLoopTime - rTCMTransmitLoopBuffer[i].millisTimeOfReceiveForCalculation > RTCM_MAX_IN_USE_DELAY) || ((rTCMTransmitLoopBuffer[i].averageReceiveIntervalCalculated > 0) && (RTCMCheckLoopTime - rTCMTransmitLoopBuffer[i].millisTimeOfReceiveForCalculation > rTCMTransmitLoopBuffer[i].averageReceiveIntervalCalculated * 3 * 1000))){
+          rTCMTransmitLoopBuffer[i].isUsedTypeOfMsg = false;
+          rTCMTransmitLoopBuffer[i].averageReceiveIntervalCalculated = 0;
+          #ifdef DEBUG_UART_ENABLED 
+            SerialDebug.println (RTCMCheckLoopTime);
+            SerialDebug.println (rTCMTransmitLoopBuffer[i].millisTimeOfReceiveForCalculation);
+            SerialDebug.println (rTCMTransmitLoopBuffer[i].averageReceiveIntervalCalculated);
+            SerialDebug.println (" but unused to long, so RTCM Msg is set to -not in use- ");
+          #endif
+        }
+      }
+      
+      if (RTCMCheckLoopTime - rTCMTransmitLoopBuffer[i].lastRTCMinUseUpdateTime > RTCM_IN_USE_MSG_UPDATE_DELAY){
+        #ifdef DEBUG_UART_ENABLED 
+            SerialDebug.println (" RTCM Status Update possible ");
+        #endif
+        if (rTCMTransmitLoopBuffer[i].averageReceiveIntervalSent != rTCMTransmitLoopBuffer[i].averageReceiveIntervalCalculated){ //different values detected
+          #ifdef DEBUG_UART_ENABLED 
+            SerialDebug.println (" different values detected ");
+          #endif
+          rTCMTransmitLoopBuffer[i].averageReceiveIntervalSent = rTCMTransmitLoopBuffer[i].averageReceiveIntervalCalculated;
+          
+          for (int x = 0; x < NR_OF_PROTOCOL_MSG_BUFFER; x++){// check complete buffer (roofNodeTransmitBuffer) for corresponding type of Msg
+            if (roofNodeTransmitBuffer[x].typeOfRTCMMsg == rTCMTransmitLoopBuffer[i].typeOfRTCMMsg){
+              if (rTCMTransmitLoopBuffer[i].isUsedTypeOfMsg){
+                ChangeFloatMsgInRoofNodeTransmitBuffer (x, rTCMTransmitLoopBuffer[i].averageReceiveIntervalCalculated, true);
+                rTCMTransmitLoopBuffer[i].lastRTCMinUseUpdateTime = RTCMCheckLoopTime;
+                #ifdef DEBUG_UART_ENABLED 
+                  SerialDebug.println (" In use ");
+                #endif
+              }
+              else {
+                ChangeFloatMsgInRoofNodeTransmitBuffer (x, rTCMTransmitLoopBuffer[i].averageReceiveIntervalCalculated, false);
+                rTCMTransmitLoopBuffer[i].lastRTCMinUseUpdateTime = RTCMCheckLoopTime;
+                #ifdef DEBUG_UART_ENABLED 
+                  SerialDebug.println (" Not in use ");
+                #endif
+              } 
+            }
+          }
+        }
+      }
+    } 
+  }
 }
