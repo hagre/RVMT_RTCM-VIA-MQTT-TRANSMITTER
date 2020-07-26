@@ -62,22 +62,6 @@ by hagre
   #define IP_2_THIS_NODE 168
   #define IP_3_THIS_NODE LAN_IP_RANGE
   #define IP_4_THIS_NODE 115
-  #define IP_1_GATEWAY 192
-  #define IP_2_GATEWAY 168
-  #define IP_3_GATEWAY LAN_IP_RANGE  
-  #define IP_4_GATEWAY 1
-  #ifndef IP_1_DNS
-    #define IP_1_DNS IP_1_GATEWAY
-  #endif
-  #ifndef IP_2_DNS
-    #define IP_2_DNS IP_2_GATEWAY
-  #endif
-  #ifndef IP_3_DNS
-    #define IP_3_DNS IP_3_GATEWAY
-  #endif
-  #ifndef IP_4_DNS
-    #define IP_4_DNS IP_4_GATEWAY
-  #endif 
 #endif
 
 #ifdef CLIENT_ROVER_NOTE
@@ -104,22 +88,6 @@ by hagre
   #define IP_2_THIS_NODE 168
   #define IP_3_THIS_NODE LAN_IP_RANGE
   #define IP_4_THIS_NODE 127
-  #define IP_1_GATEWAY 192
-  #define IP_2_GATEWAY 168
-  #define IP_3_GATEWAY LAN_IP_RANGE
-  #define IP_4_GATEWAY 1
-  #ifndef IP_1_DNS
-    #define IP_1_DNS IP_1_GATEWAY
-  #endif
-  #ifndef IP_2_DNS
-    #define IP_2_DNS IP_2_GATEWAY
-  #endif
-  #ifndef IP_3_DNS
-    #define IP_3_DNS IP_3_GATEWAY
-  #endif
-  #ifndef IP_4_DNS
-    #define IP_4_DNS IP_4_GATEWAY
-  #endif  
 #endif
 
 #ifdef WIFI_CONNECTED_NODE 
@@ -350,10 +318,6 @@ by hagre
   #endif
 
   const IPAddress Node_IP (IP_1_THIS_NODE, IP_2_THIS_NODE, IP_3_THIS_NODE, IP_4_THIS_NODE);
-  const IPAddress gateway (IP_1_GATEWAY, IP_2_GATEWAY, IP_3_GATEWAY, IP_4_GATEWAY);
-  const IPAddress dns (IP_1_DNS, IP_2_DNS, IP_3_DNS, IP_4_DNS);
-  const IPAddress subnet (255, 255, 255, 0);
-
 
   #ifdef WIFI_CONNECTED_NODE
     #include <WiFi.h>
@@ -613,6 +577,7 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
           #endif 
           if (check){ //msg sent correctly
             rTCMTransmitLoopBuffer[i].alreadySent = true; // stop blocking variable for new input
+            rTCMTransmitLoopBuffer[i].readyToSend = false; // stop blocking variable for new input
             MQTTWaitBetweenSendingMsg.resetTimingNow (millisOfOutput);
             #ifdef DEBUG_UART_ENABLED 
               SerialDebug.print (" Check ");
@@ -637,17 +602,17 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
         } 
         else { //Nothing to send from buffer, epoch completed
           #ifdef DEBUG_UART_ENABLED 
-            SerialDebug.print ("Nothing to send from buffer, epoch completed ");
-            SerialDebug.println (rTCMTransmitLoopBufferTXEpoch);
+            //SerialDebug.print ("Nothing to send from buffer, epoch completed ");
+            //SerialDebug.println (rTCMTransmitLoopBufferTXEpoch);
           #endif
         }
       }
 
       for (int i = 0; i < NR_OF_PROTOCOL_MSG_BUFFER; i++){// check complete buffer (roofNodeTransmitBuffer) ---------------------------------------------------------------------------------------------------------------------------------------------------------------
         #ifdef DEBUG_UART_ENABLED 
-          SerialDebug.print (roofNodeTransmitBuffer[i].readyToSend);
-          SerialDebug.print (" TransmittBufferSend, ");
-          SerialDebug.print (i);
+          //SerialDebug.print (roofNodeTransmitBuffer[i].readyToSend);
+          //SerialDebug.print (" TransmittBufferSend, ");
+          //SerialDebug.println (i);
         #endif
 
         if (roofNodeTransmitBuffer[i].readyToSend){
@@ -682,6 +647,7 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
           #endif 
           if (check){ //msg sent correctly
             roofNodeTransmitBuffer[i].alreadySent = true; // stop blocking variable for new input
+            roofNodeTransmitBuffer[i].readyToSend = false; // stop blocking variable for new input
             MQTTWaitBetweenSendingMsg.resetTimingNow (millisOfOutput);
             #ifdef DEBUG_UART_ENABLED 
               //SerialDebug.print (" Check ");
@@ -702,7 +668,7 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
         } 
         else { //Nothing to send from buffer, epoch completed
           #ifdef DEBUG_UART_ENABLED 
-            SerialDebug.print ("Nothing to send from buffer, check completed ");
+            SerialDebug.println ("Nothing to send from buffer, check completed ");
           #endif
         }
       } // end for loop
@@ -937,7 +903,7 @@ void setup() { // -------------------------------- S E T U P -------------------
         SerialDebug.println ("Starting WIFI");
         SyncWifiConnection.setWifiDebugSerial (&SerialDebug);
       #endif
-      SyncWifiConnection.InitAndBegin (WIFI_STA, Node_IP, gateway, subnet, dns, YOUR_WIFI_HOSTNAME, YOUR_WIFI_SSID, YOUR_WIFI_PASSWORD); 
+      SyncWifiConnection.init (WIFI_STA, Node_IP, YOUR_WIFI_HOSTNAME, YOUR_WIFI_SSID, YOUR_WIFI_PASSWORD); 
     #endif 
 
     #ifdef ETHERNET_CONNECTED_NODE
@@ -960,8 +926,6 @@ void setup() { // -------------------------------- S E T U P -------------------
   #ifdef MQTT_VIA_NOT_SECURE_WIFI_NODE
     //Nothing todo
   #endif
-
-  SerialDebug.println ("Starting WIFI5");
 
   #ifdef SERVER_ROOF_NOTE
 
@@ -1063,7 +1027,7 @@ void loop() { // -------------------------------- L O O P ----------------------
 
     #ifdef WIFI_CONNECTED_NODE
       //WIFI CONNECTION MANAGER
-      LANStatus = SyncWifiConnection.Loop(millis());
+      LANStatus = SyncWifiConnection.loop(millis());
     #endif
 
     #ifdef ETHERNET_CONNECTED_NODE
