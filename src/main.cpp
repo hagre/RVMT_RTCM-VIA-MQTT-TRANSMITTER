@@ -299,6 +299,8 @@ by hagre
     uint8_t serialRTCMtoMQTTBuffer[MQTT_BUFFER_SIZE];
 
     bool rTCMviaMQTTisActive = true;
+    uint8_t statusBaseStation = 0;  //0 == OFFLINE, 1 = Booting, 2 = STBY, 3 = ONLINE
+
   #endif
 
   int8_t LANStatus = -5; //Connected to Network //WIFI or ETHERNET //-5 = init, -2 = just disconnected, -1 = wait to reconnect, 0 = disconnected, 1 = connecting, 2 = just connected,  3 = still connected
@@ -495,11 +497,13 @@ bool ReadRTCMSerialToBuffer (){
 bool MQTTTransmitMsg (int8_t actualMQTTStatus){
   if (actualMQTTStatus == 4) {
     unsigned long millisOfOutput = millis();
+
     #ifdef DEBUG_UART_ENABLED 
-      //SerialDebug.println (" Ready to send next MQTT - time elapsed ");
+      //SerialDebug.println (MQTTWaitBetweenSendingMsg.getStatus (millisOfOutput,false));
     #endif
 
-    if (MQTTWaitBetweenSendingMsg.getStatus (millisOfOutput) >= 0){ // wait between sending of MQTT Msg to avoid overflow/losses
+
+    if (MQTTWaitBetweenSendingMsg.getStatus (millisOfOutput, false) >= 0){ // wait between sending of MQTT Msg to avoid overflow/losses
       #ifdef DEBUG_UART_ENABLED 
         //SerialDebug.println (" Ready to send, ");
       #endif
@@ -511,7 +515,7 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
 
         if (rTCMTransmitLoopBuffer[i].readyToSend){
           #ifdef DEBUG_UART_ENABLED 
-                //SerialDebug.print ("Ready to send next MQTT found  ");
+                SerialDebug.print ("Ready to send next MQTT found  ");
           #endif
           if (rTCMTransmitLoopBuffer[i].nrOfInternalEpoche - rTCMTransmitLoopBufferTXEpoch > 0) {
             #ifdef DEBUG_UART_ENABLED 
@@ -531,13 +535,13 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
           MQTTMsgTopic = MQTTMsgTopic + MQTT_RTCM_BASE_NAME;
           MQTTMsgTopic = MQTTMsgTopic + "/" ;
           MQTTMsgTopic = MQTTMsgTopic + MQTTMsgType;
-          MQTTMsgTopic = MQTTMsgTopic + "/";
+          //MQTTMsgTopic = MQTTMsgTopic + "/";
 
           char bMQTTMsg [RTCM_BUFFER_SIZE];
-          char* pbMQTTMsg = bMQTTMsg;
+          //char* pbMQTTMsg = bMQTTMsg;
           #ifdef DEBUG_UART_ENABLED 
-            SerialDebug.print (" OutputStreamLength ");
-            SerialDebug.println (RTCMStream.outputStreamLength);
+            SerialDebug.print (" msgLength ");
+            SerialDebug.println (rTCMTransmitLoopBuffer[i].msgLength);
           #endif
 
           for (uint16_t x = 0; x < rTCMTransmitLoopBuffer[i].msgLength; x++){
@@ -546,13 +550,17 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
               SerialDebug.print (bMQTTMsg[x], HEX); 
             #endif
           }
+          #ifdef DEBUG_UART_ENABLED 
+            SerialDebug.println ("");
+            SerialDebug.println (bMQTTMsg); 
+          #endif
 
           int16_t check = 0;
           if (rTCMTransmitLoopBuffer[i].typeOfRTCMMsg == 1005){
-            if (RTCMTransmit1005Timer.getStatus(millis()) >= 0){
+            if (RTCMTransmit1005Timer.getStatus(millis(), false) >= 0){
               RTCMTransmit1005Timer.resetTimingNow (millis());
               if (rTCMviaMQTTisActive){
-                check = syncMQTTConnection.publish (MQTTMsgTopic.c_str(), pbMQTTMsg, true);
+                check = syncMQTTConnection.publish (MQTTMsgTopic.c_str(), (uint8_t *) bMQTTMsg, rTCMTransmitLoopBuffer[i].msgLength, true);
               }
               else {
                 check = true; //to simulate transmitt if switched off by remote
@@ -564,7 +572,7 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
           }
           else { //all other msgs
             if (rTCMviaMQTTisActive){
-              check = syncMQTTConnection.publish (MQTTMsgTopic.c_str(), pbMQTTMsg, MQTT_MSG_RETAINED);
+              check = syncMQTTConnection.publish (MQTTMsgTopic.c_str(), (uint8_t *) bMQTTMsg, rTCMTransmitLoopBuffer[i].msgLength, MQTT_MSG_RETAINED);
             }
             else {
               check = true; //to simulate transmitt if switched off by remote
@@ -620,7 +628,7 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
             SerialDebug.print ("Ready to send next Protocol MQTT found  ");
           #endif
 
-          char* pbMQTTMsg =  roofNodeTransmitBuffer[i].contentMsg;
+          //char* pbMQTTMsg =  roofNodeTransmitBuffer[i].contentMsg;
 
           String MQTTMsgTopic = "";
           for (uint16_t x = 0; x < roofNodeTransmitBuffer[i].topicLength; x++){
@@ -637,7 +645,7 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
           #endif 
 
           int16_t check = 0;
-          check = syncMQTTConnection.publish (MQTTMsgTopic.c_str(), pbMQTTMsg, roofNodeTransmitBuffer[i].retain);
+          check = syncMQTTConnection.publish (MQTTMsgTopic.c_str(), (uint8_t *) roofNodeTransmitBuffer[i].contentMsg, roofNodeTransmitBuffer[i].msgLength, roofNodeTransmitBuffer[i].retain);
           //not supported by PubSubClient Library
           //check = syncMQTTConnection.publish ((char*)MQTTMsgTopic.c_str(), pbMQTTMsg, roofNodeTransmitBuffer[i].msgLength, roofNodeTransmitBuffer[i].qOS, roofNodeTransmitBuffer[i].retain);
           #ifdef DEBUG_UART_ENABLED 
@@ -668,15 +676,14 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
         } 
         else { //Nothing to send from buffer, epoch completed
           #ifdef DEBUG_UART_ENABLED 
-            SerialDebug.println ("Nothing to send from buffer, check completed ");
+            //SerialDebug.println ("Nothing to send from buffer, check completed ");
           #endif
         }
-      } // end for loop
-
+      } // end of for loop
     } // END of wait between sending of MQTT Msg to avoid overflow/losses
     else {
       #ifdef DEBUG_UART_ENABLED 
-        SerialDebug.println ("Delay - Waiting to transmitt next MQTTMsg ");;
+        //SerialDebug.println ("Delay - Waiting to transmitt next MQTTMsg ");;
       #endif
     }
   }
@@ -982,9 +989,9 @@ void setup() { // -------------------------------- S E T U P -------------------
  
     RTCMTransmit1005Timer.setIntervalMs (RTCM_1005_DATA_INTERVAL);
     MQTTWaitBetweenSendingMsg.setIntervalMs (MQTT_WAIT_BETWEEN_SENDING_MSG);
+    MQTTWaitBetweenSendingMsg.resetTimingNow (millis());
     RTCMMsgCheckInUseTimer.setIntervalMs (RTCM_MSG_CHECK_IN_USE_INTERVAL);
-
-    RTCMMsgCheckInUseTimer.resetTimingNow(millis());
+    RTCMMsgCheckInUseTimer.resetTimingNow (millis());
 
     // initiate Loop buffer variable
     rTCMTransmitLoopBuffer[0].typeOfRTCMMsg = 1005; //RTCM 1005 Stationary RTK reference station ARP
@@ -1049,9 +1056,9 @@ void loop() { // -------------------------------- L O O P ----------------------
 
 
   unsigned long RTCMCheckLoopTime = millis ();
-  if (RTCMMsgCheckInUseTimer.getStatus (RTCMCheckLoopTime) >= 0){ // wait to check Msg in Use 
+  if (RTCMMsgCheckInUseTimer.getStatus (RTCMCheckLoopTime, false) >= 0){ // wait to check Msg in Use 
     #ifdef DEBUG_UART_ENABLED 
-      SerialDebug.println (" Check RTCM Msg in use, ");
+      //SerialDebug.println (" Check RTCM Msg in use, ");
     #endif
     
     for (int i = 0; i < RTCM_LOOP_BUFFER_SIZE; i++){// check complete buffer (rTCMTransmitLoopBuffer)
