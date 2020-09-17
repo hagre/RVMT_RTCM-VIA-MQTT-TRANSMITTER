@@ -19,6 +19,8 @@ v.2.3 - create SyncMQTTConnectionESP32_Library on github and include (move parts
     - still debuging on many parts of the code 
     - debug/usb speed 115200
 v.2.4 - Split Firmware in 2 Parts - RVMT (Transmitter == RTK-Base) and RVMR (Receiver == Rover, Client, "Translator" to TCP/NTRIP steam)
+v.2.5 - preperation to support RVMP-V0.3
+    - further cleaning of code
 
     DO NOT USE THIS VERSION - DEBUG IN PROGRESS
 

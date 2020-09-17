@@ -10,36 +10,22 @@ by hagre
 06 2019 - 2020 
 */
 #define VERSION 2
-#define SUB_VERSION 4
+#define SUB_VERSION 5
 
 #define PROT_VERSION 0
-#define PROT_SUB_VERSION 2
+#define PROT_SUB_VERSION 3
 
-//Select Type of equipment
+//Features
 #define USE_MY_SECRETS //self explaining (more or less just for me to use)
-
-//ONLY FOR INFO: SELECTION OF COMPLETE CONFIGURATION POSSIBILITIES
-//#define USE_MY_SECRETS //self explaining (more or less just for me to use)
-//#define DEBUG_UART_ENABLED //enable or disable with // in front of #define     //self explaining (more or less just for me to use)
-
-//#define WIFI_CONNECTED_NODE //enable or disable with // in front of #define
+#define DEBUG_UART_ENABLED //enable or disable with // in front of #define     //self explaining (more or less just for me to use)
+#define WIFI_CONNECTED_NODE 
 //or
 //#define ETHERNET_CONNECTED_NODE //enable or disable with // in front of #define
-//#define MQTT_VIA_SECURE_WIFI_NODE //enable or disable with // in front of #define 
-//or
-//#define MQTT_VIA_NOT_SECURE_WIFI_NODE //enable or disable with // in front of #define 
-//#define RTCM_VIA_MQTT_TRANSMITTING_WITH_PASSWORD //enable or disable with // in front of #define 
-//#define MQTT_BROKER_VIA_HOSTNAME
-//or
-//#define MQTT_BROKER_VIA_IP
-
-
-#define DEBUG_UART_ENABLED //enable or disable with // in front of #define     //self explaining (more or less just for me to use)
-//Features
-#define WIFI_CONNECTED_NODE 
 #define MQTT_VIA_SECURE_WIFI_NODE
+//or
 //#define MQTT_VIA_NOT_SECURE_WIFI_NODE
 #define MQTT_BROKER_VIA_HOSTNAME
+//or
 //#define MQTT_BROKER_VIA_IP  
 #define RTCM_VIA_MQTT_TRANSMITTING_WITH_PASSWORD
 
@@ -70,86 +56,83 @@ by hagre
   #endif 
 #endif 
 
-#if defined(WIFI_CONNECTED_NODE) || defined (ETHERNET_CONNECTED_NODE)
-
-  #ifdef RTCM_VIA_MQTT_TRANSMITTING_WITH_PASSWORD
-    #ifndef MQTT_BROKER_USERNAME
-      #define MQTT_BROKER_USERNAME "MQTTuser" //config as required 
-    #endif
-    #ifndef MQTT_BROKER_PASSWORD
-      #define MQTT_BROKER_PASSWORD "MQTTpassword" //config as required 
-    #endif
+#ifdef RTCM_VIA_MQTT_TRANSMITTING_WITH_PASSWORD
+  #ifndef MQTT_BROKER_USERNAME
+    #define MQTT_BROKER_USERNAME "MQTTuser" //config as required 
   #endif
-
-  #ifndef MQTT_CLIENT_ID_FOR_BROKER
-    #define MQTT_CLIENT_ID_FOR_BROKER "TestClient" //config as required 
+  #ifndef MQTT_BROKER_PASSWORD
+    #define MQTT_BROKER_PASSWORD "MQTTpassword" //config as required 
   #endif
-  
-  #define MQTT_VERSION 4 //4 = MQTT_VERSION_3_1 // 3 = MQTT_VERSION_3_1_1 
- 
-  #ifdef MQTT_BROKER_VIA_IP
-    #ifndef MQTT_BROKER_1_IP 
-      #define MQTT_BROKER_1_IP 10 //config as required //for unsecure LAN connection
-    #endif
-    #ifndef MQTT_BROKER_2_IP 
-      #define MQTT_BROKER_2_IP 0 //config as required //for unsecure LAN connection
-    #endif
-    #ifndef MQTT_BROKER_3_IP 
-      #define MQTT_BROKER_3_IP 0 //config as required //for unsecure LAN connection
-    #endif
-    #ifndef MQTT_BROKER_4_IP 
-      #define MQTT_BROKER_4_IP 1 //config as required //for unsecure LAN connection
-    #endif
-  #endif  
-  #ifdef MQTT_BROKER_VIA_HOSTNAME
-    #ifndef HOSTNAME_OF_MQTT_BROKER
-      #define HOSTNAME_OF_MQTT_BROKER "test.mosquitto.com" //config as required  //for secure INTERNET connection
-    #endif
-  #endif
-
-  #ifdef MQTT_VIA_SECURE_WIFI_NODE
-    #define MQTT_CONNECTION_PORT 8883 // 8883 TLS //config as required
-  #endif  
-  #ifdef MQTT_VIA_NOT_SECURE_WIFI_NODE
-    #define MQTT_CONNECTION_PORT 8882 //8882 = not secure on LAN only //config as required
-  #endif
-
-  #define MQTT_SET_KEEPALIVE 30 //15 = 15sec
-  #define MQTT_SET_SOCKET_TIMEOUT 40 //20sec
-
-  #define MQTT_WAIT_FOR_SERVER_CONNECTION 10000 //ms time - default is 30000 ms, change only if required
-  #define MQTT_WAIT_FOR_SERVER_RECONNECTION 5000 //ms time - default is 15000 ms, change only if required
-  #define MQTT_WAIT_BETWEEN_SENDING_MSG 50 // 30ms //config as required
-  #define MQTT_MAX_TIME_FOR_RESEND_MSG 1000 // 10000ms //config as required
-  #define MQTT_MSG_RETAINED false // false //config as required
-
-  #define MQTT_RTCM_TOPIC_INIT "RTK/Base/"
-
-  #ifndef MQTT_RTCM_BASE_NAME
-    #define MQTT_RTCM_BASE_NAME "TEST01" //config as required 
-  #endif
-
-  #define MQTT_LASTWILL_QOS 0
-  #define MQTT_LASTWILL_RETAIN 0
-  #define MQTT_LASTWILL_MSG "OFFLINE"
-  
-  #define MQTT_BUFFER_SIZE 1024
-  #define MQTT_MAX_PACKET_SIZE MQTT_BUFFER_SIZE
-
-  #define RTCM_VIA_MQTT_UART_TRANSMITTING_BOUD 230400 //config as required 
-  #define RTCM_UART_HARDWARE_PORT 2 //config as required //set 2, USB == 0, 1 == UART1 F9P, 2 == UART2 F9P rewire rquired not fitting on ardusimple
-  #define RTCM_BUFFER_SIZE 1024 //config as required
-  #define RTCM_LOOP_BUFFER_SIZE 10 //10 config as required // •  RTCM 1005 Stationary RTK reference station ARP•  RTCM 1074 and 1077 GPS •  RTCM 1084 and 1087 GLONASS •  RTCM 1094 ans 1097 Galileo •  RTCM 1124 and 1127 BeiDou•  RTCM 1230 GLONASS code-phase biases
-
-  #define TOPIC_MSG_BUFFER_LENGTH 100
-  #define CONTENT_MSG_BUFFER_LENGTH 100
-  #define NR_OF_PROTOCOL_MSG_BUFFER 20
-
-  #define RTCM_MSG_CHECK_IN_USE_INTERVAL 1000 //
-  #define RTCM_MAX_IN_USE_DELAY 65000
-  #define RTCM_IN_USE_MSG_UPDATE_DELAY 1000 //10000 
 #endif
 
+#ifndef MQTT_CLIENT_ID_FOR_BROKER
+  #define MQTT_CLIENT_ID_FOR_BROKER "TestClient" //config as required 
+#endif
+
+#define MQTT_VERSION 4 //4 = MQTT_VERSION_3_1 // 3 = MQTT_VERSION_3_1_1 
+
+#ifdef MQTT_BROKER_VIA_IP
+  #ifndef MQTT_BROKER_1_IP 
+    #define MQTT_BROKER_1_IP 10 //config as required //for unsecure LAN connection
+  #endif
+  #ifndef MQTT_BROKER_2_IP 
+    #define MQTT_BROKER_2_IP 0 //config as required //for unsecure LAN connection
+  #endif
+  #ifndef MQTT_BROKER_3_IP 
+    #define MQTT_BROKER_3_IP 0 //config as required //for unsecure LAN connection
+  #endif
+  #ifndef MQTT_BROKER_4_IP 
+    #define MQTT_BROKER_4_IP 1 //config as required //for unsecure LAN connection
+  #endif
+#endif  
+#ifdef MQTT_BROKER_VIA_HOSTNAME
+  #ifndef HOSTNAME_OF_MQTT_BROKER
+    #define HOSTNAME_OF_MQTT_BROKER "test.mosquitto.com" //config as required  //for secure INTERNET connection
+  #endif
+#endif
+
+#ifdef MQTT_VIA_SECURE_WIFI_NODE
+  #define MQTT_CONNECTION_PORT 8883 // 8883 TLS //config as required
+#endif  
+#ifdef MQTT_VIA_NOT_SECURE_WIFI_NODE
+  #define MQTT_CONNECTION_PORT 8882 //8882 = not secure on LAN only //config as required
+#endif
+
+#define MQTT_SET_KEEPALIVE 30 //15 = 15sec
+#define MQTT_SET_SOCKET_TIMEOUT 40 //20sec
+
+#define MQTT_WAIT_FOR_SERVER_CONNECTION 10000 //ms time - default is 30000 ms, change only if required
+#define MQTT_WAIT_FOR_SERVER_RECONNECTION 5000 //ms time - default is 15000 ms, change only if required
+#define MQTT_WAIT_BETWEEN_SENDING_MSG 50 // 30ms //config as required
+#define MQTT_MAX_TIME_FOR_RESEND_MSG 1000 // 10000ms //config as required
+#define MQTT_MSG_RETAINED false // false //config as required
+
+#define MQTT_RTCM_TOPIC_INIT "RTK/Base/"
+
+#ifndef MQTT_RTCM_BASE_NAME
+  #define MQTT_RTCM_BASE_NAME "TEST01" //config as required 
+#endif
+
+#define MQTT_LASTWILL_QOS 0
+#define MQTT_LASTWILL_RETAIN 0
+#define MQTT_LASTWILL_MSG "OFFLINE"
+
+#define MQTT_BUFFER_SIZE 1024
+#define MQTT_MAX_PACKET_SIZE MQTT_BUFFER_SIZE
+
+#define RTCM_VIA_MQTT_UART_TRANSMITTING_BOUD 230400 //config as required 
+#define RTCM_UART_HARDWARE_PORT 2 //config as required //set 2, USB == 0, 1 == UART1 F9P, 2 == UART2 F9P rewire rquired not fitting on ardusimple
+#define RTCM_BUFFER_SIZE 1024 //config as required
+#define RTCM_LOOP_BUFFER_SIZE 10 //10 config as required // •  RTCM 1005 Stationary RTK reference station ARP•  RTCM 1074 and 1077 GPS •  RTCM 1084 and 1087 GLONASS •  RTCM 1094 ans 1097 Galileo •  RTCM 1124 and 1127 BeiDou•  RTCM 1230 GLONASS code-phase biases
+
+#define TOPIC_MSG_BUFFER_LENGTH 100
+#define CONTENT_MSG_BUFFER_LENGTH 100
+#define NR_OF_PROTOCOL_MSG_BUFFER 20
+
+#define RTCM_MSG_CHECK_IN_USE_INTERVAL 1000 //
+#define RTCM_MAX_IN_USE_DELAY 65000
+#define RTCM_IN_USE_MSG_UPDATE_DELAY 1000 //10000 
+#define LAST_RTCM_INPUT_WAITING_TIME 10000 //10000
 
 #ifdef DEBUG_UART_ENABLED 
   #define DEBUG_UART_HARDWARE_PORT 0 //config as required // USB == 0
@@ -159,33 +142,22 @@ by hagre
 // -------------------------------- End of Config -----------------------------------------------
 
 // -------------------------------- Begin of Program --------------------------------------------
-//include libraries
-#include <Arduino.h>
-#include "verysimpletimer.h"
-
 //sanitycheck
 #ifdef WIFI_CONNECTED_NODE
-  #define LAN_CONNECTED_NODE
   #ifdef ETHERNET_CONNECTED_NODE
     #error "ERROR: select one: WIFI or ETHERNET"
   #endif
 #endif
 
-#ifdef ETHERNET_CONNECTED_NODE
-    #define LAN_CONNECTED_NODE
-  #ifdef WIFI_CONNECTED_NODE
-    #error "ERROR: select one: WIFI or ETHERNET"
-  #endif
-#endif
+//include libraries
+#include <Arduino.h>
+#include "verysimpletimer.h"
+VerySimpleTimer MQTTWaitBetweenSendingMsg;
+VerySimpleTimer RTCMMsgCheckInUseTimer;
 
-#ifdef DEBUG_UART_ENABLED
-  uint16_t debug_count = 0;
-  VerySimpleTimer DebugLoopTimer;
-#endif 
+#include <rtcmstreamsplitter.h>
+RTCMStreamSplitter RTCMStream; 
 
-#ifndef LAN_CONNECTED_NODE
-  #error "ERROR: select at least one: WIFI or ETHERNET"
-#endif
 
 #define UART0RX 3 //ESP32 GPIOs
 #define UART0TX 1
@@ -194,8 +166,23 @@ by hagre
 #define UART2RX 13 //16 //ESP32 look like UNO - modified for Ardusimpleconnection 
 #define UART2TX 26 //17 //ESP32 look like UNO - modified for Ardusimpleconnection 
 
+#include <HardwareSerial.h>
+uint32_t serialRTCMPortBoud = RTCM_VIA_MQTT_UART_TRANSMITTING_BOUD;
+#if RTCM_UART_HARDWARE_PORT == 0  
+  #define RTCM_UART_RX UART0RX
+  #define RTCM_UART_TX UART0TX
+#elif RTCM_UART_HARDWARE_PORT == 1  
+  #define RTCM_UART_RX UART1RX
+  #define RTCM_UART_TX UART1TX
+#elif RTCM_UART_HARDWARE_PORT == 2 
+  #define RTCM_UART_RX UART2RX
+  #define RTCM_UART_TX UART2TX 
+#endif
+HardwareSerial SerialRTCM(RTCM_UART_HARDWARE_PORT);
+
 #ifdef DEBUG_UART_ENABLED
-  #include <HardwareSerial.h>
+  uint16_t debug_count = 0;
+  VerySimpleTimer DebugLoopTimer;
   uint32_t serialDebugPortBoud = DEBUG_UART_BOUD;
   #if DEBUG_UART_HARDWARE_PORT == 0  
     #define DEBUG_UART_RX UART0RX
@@ -210,112 +197,95 @@ by hagre
   HardwareSerial SerialDebug(DEBUG_UART_HARDWARE_PORT);
 #endif
 
+struct RTCMTransmitBuffer_t {
+  bool readyToSend = false;
+  bool alreadySent = true; //clear to input first msg, to start sending
+  unsigned long nrOfInternalEpoche;
+  unsigned long millisTimeOfReceiveForSending;
+  unsigned long millisTimeOfReceiveForCalculation;
+  unsigned long lastRTCMinUseUpdateTime;
+  int16_t typeOfRTCMMsg = 0;
+  byte RTCMMsg [RTCM_BUFFER_SIZE]; 
+  uint16_t msgLength = 0;
+  bool isUsedTypeOfMsg = false;
+  int16_t averageReceiveIntervalCalculated = 0;
+  int16_t averageReceiveIntervalSent = 0; //-1 ?
+} rTCMTransmitLoopBuffer [RTCM_LOOP_BUFFER_SIZE];
 
-#ifdef LAN_CONNECTED_NODE  
+struct RoofNodeTransmitBuffer_t {
+  bool readyToSend = false;
+  bool alreadySent = true; //clear to input first msg, to start sending
+  int16_t typeOfRTCMMsg = 0;
+  char topicMsg [TOPIC_MSG_BUFFER_LENGTH];
+  uint16_t topicLength = 0;
+  char contentMsg [CONTENT_MSG_BUFFER_LENGTH]; 
+  uint16_t msgLength = 0;
+  uint8_t qOS = 0;
+  bool retain = false;
+} roofNodeTransmitBuffer [NR_OF_PROTOCOL_MSG_BUFFER];
 
-  String lastWillTopic;
+uint8_t serialRTCMtoMQTTBuffer[MQTT_BUFFER_SIZE];
 
-  struct RTCMTransmitBuffer_t {
-    bool readyToSend = false;
-    bool alreadySent = true; //clear to input first msg, to start sending
-    unsigned long nrOfInternalEpoche;
-    unsigned long millisTimeOfReceiveForSending;
-    unsigned long millisTimeOfReceiveForCalculation;
-    unsigned long lastRTCMinUseUpdateTime;
-    int16_t typeOfRTCMMsg = 0;
-    byte RTCMMsg [RTCM_BUFFER_SIZE]; 
-    uint16_t msgLength = 0;
-    bool isUsedTypeOfMsg = false;
-    int16_t averageReceiveIntervalCalculated = 0;
-    int16_t averageReceiveIntervalSent = 0; //-1 ?
-  } rTCMTransmitLoopBuffer [RTCM_LOOP_BUFFER_SIZE];
+unsigned long rTCMTransmitLoopBufferRXEpoch = 0;
+unsigned long rTCMTransmitLoopBufferTXEpoch = 0;
 
-  struct RoofNodeTransmitBuffer_t {
-    bool readyToSend = false;
-    bool alreadySent = true; //clear to input first msg, to start sending
-    int16_t typeOfRTCMMsg = 0;
-    char topicMsg [TOPIC_MSG_BUFFER_LENGTH];
-    uint16_t topicLength = 0;
-    char contentMsg [CONTENT_MSG_BUFFER_LENGTH]; 
-    uint16_t msgLength = 0;
-    uint8_t qOS = 0;
-    bool retain = false;
-  } roofNodeTransmitBuffer [NR_OF_PROTOCOL_MSG_BUFFER];
+unsigned long lastRTCMinputTime = 0;
+unsigned long lastRTCMinputWaitingTime = LAST_RTCM_INPUT_WAITING_TIME;
 
-  unsigned long rTCMTransmitLoopBufferRXEpoch = 0;
-  unsigned long rTCMTransmitLoopBufferTXEpoch = 0;
+const IPAddress Node_IP (IP_1_THIS_NODE, IP_2_THIS_NODE, IP_3_THIS_NODE, IP_4_THIS_NODE);
 
-  uint8_t serialRTCMtoMQTTBuffer[MQTT_BUFFER_SIZE];
+bool rTCMviaMQTTisActive = true;
+uint8_t statusBaseStation = 0;  //0 == OFFLINE, 1 = ERROR, 2 = STBY, 3 = ONLINE
 
-  bool rTCMviaMQTTisActive = true;
-  uint8_t statusBaseStation = 0;  //0 == OFFLINE, 1 = Booting, 2 = STBY, 3 = ONLINE
+int8_t LANStatus = -5; //Connected to Network //WIFI or ETHERNET //-5 = init, -2 = just disconnected, -1 = wait to reconnect, 0 = disconnected, 1 = connecting, 2 = just connected,  3 = still connected
+int8_t MQTTStatus = -5; //Connected to MQTT broker // -5 init, -3 LAN just disconnected, -2 just disconnected, -1 wait to reconnect, 0 disconnected, 1 connecting, 2 just connected, 3 subscribing, 4 subscribed and connected
 
-  int8_t LANStatus = -5; //Connected to Network //WIFI or ETHERNET //-5 = init, -2 = just disconnected, -1 = wait to reconnect, 0 = disconnected, 1 = connecting, 2 = just connected,  3 = still connected
- 
-  #ifdef MQTT_BROKER_VIA_HOSTNAME
-    const char* mQTTBrokerHostName = HOSTNAME_OF_MQTT_BROKER;
-  #endif
+String lastWillTopic;
 
-  #ifdef MQTT_BROKER_VIA_IP
-    const IPAddress mQTTBrokerIP (MQTT_BROKER_1_IP, MQTT_BROKER_2_IP, MQTT_BROKER_3_IP, MQTT_BROKER_4_IP); 
+#ifdef MQTT_BROKER_VIA_HOSTNAME
+  const char* mQTTBrokerHostName = HOSTNAME_OF_MQTT_BROKER;
+#endif
+
+#ifdef MQTT_BROKER_VIA_IP
+  const IPAddress mQTTBrokerIP (MQTT_BROKER_1_IP, MQTT_BROKER_2_IP, MQTT_BROKER_3_IP, MQTT_BROKER_4_IP); 
+#endif  
+
+#ifdef RTCM_VIA_MQTT_TRANSMITTING_WITH_PASSWORD
+  const char * mqttUsername = MQTT_BROKER_USERNAME;
+  const char * mqttPassword = MQTT_BROKER_PASSWORD;
+#endif
+
+#ifdef WIFI_CONNECTED_NODE
+  #include <WiFi.h>
+  #include <SyncWifiConnectionESP32.h>
+  SyncWifiConnectionESP32 SyncWifiConnection;
+  const char* ssid     = YOUR_WIFI_SSID; 
+  const char* password = YOUR_WIFI_PASSWORD;
+
+  #ifdef MQTT_VIA_SECURE_WIFI_NODE
+    #include <WiFiClientSecure.h>
+    WiFiClientSecure mqttLANClient;
+    #ifndef MQTT_BROKER_CA_CERT 
+      //This is an unvalide root_CA_cert just to show you the format
+      #include "root_ca.h"
+    #endif
   #endif  
 
-  #ifdef RTCM_VIA_MQTT_TRANSMITTING_WITH_PASSWORD
-    const char * mqttUsername = MQTT_BROKER_USERNAME;
-    const char * mqttPassword = MQTT_BROKER_PASSWORD;
+  #ifdef MQTT_VIA_NOT_SECURE_WIFI_NODE
+    #include <WiFiClient.h>
+    WiFiClient mqttLANClient;
   #endif
 
-  const IPAddress Node_IP (IP_1_THIS_NODE, IP_2_THIS_NODE, IP_3_THIS_NODE, IP_4_THIS_NODE);
-
-  #ifdef WIFI_CONNECTED_NODE
-    #include <WiFi.h>
-    #include <SyncWifiConnectionESP32.h>
-    SyncWifiConnectionESP32 SyncWifiConnection;
-    const char* ssid     = YOUR_WIFI_SSID; 
-    const char* password = YOUR_WIFI_PASSWORD;
-
-    #ifdef MQTT_VIA_SECURE_WIFI_NODE
-      #include <WiFiClientSecure.h>
-      WiFiClientSecure mqttLANClient;
-      #ifndef MQTT_BROKER_CA_CERT 
-        //This is an unvalide root_CA_cert just to show you the format
-        #include "root_ca.h"
-      #endif
-    #endif  
-
-    #ifdef MQTT_VIA_NOT_SECURE_WIFI_NODE
-      #include <WiFiClient.h>
-      WiFiClient mqttLANClient;
-    #endif
-
-    #include <SyncMQTTConnectionESP32.h>
-    SyncMQTTConnectionESP32 syncMQTTConnection; 
-    const char* mqttPubSubClientId = MQTT_CLIENT_ID_FOR_BROKER;
-  #endif
-
-  #ifdef ETHERNET_CONNECTED_NODE
-    // LAN ToDo... ------------------------------------------------------------------------------------------------ToDO-----------------------------------------------
-  #endif
-  
-  #include <HardwareSerial.h>
-  uint32_t serialRTCMPortBoud = RTCM_VIA_MQTT_UART_TRANSMITTING_BOUD;
-  #if RTCM_UART_HARDWARE_PORT == 0  
-    #define RTCM_UART_RX UART0RX
-    #define RTCM_UART_TX UART0TX
-  #elif RTCM_UART_HARDWARE_PORT == 1  
-    #define RTCM_UART_RX UART1RX
-    #define RTCM_UART_TX UART1TX
-  #elif RTCM_UART_HARDWARE_PORT == 2 
-    #define RTCM_UART_RX UART2RX
-    #define RTCM_UART_TX UART2TX 
-  #endif
-  HardwareSerial SerialRTCM(RTCM_UART_HARDWARE_PORT);
-  VerySimpleTimer MQTTWaitBetweenSendingMsg;
-  VerySimpleTimer RTCMMsgCheckInUseTimer;
-  int8_t MQTTStatus = -5; //Connected to MQTT broker // -5 init, -3 LAN just disconnected, -2 just disconnected, -1 wait to reconnect, 0 disconnected, 1 connecting, 2 just connected, 3 subscribing, 4 subscribed and connected
-  #include <rtcmstreamsplitter.h>
-  RTCMStreamSplitter RTCMStream;    
+  #include <SyncMQTTConnectionESP32.h>
+  SyncMQTTConnectionESP32 syncMQTTConnection; 
+  const char* mqttPubSubClientId = MQTT_CLIENT_ID_FOR_BROKER;
 #endif
+
+#ifdef ETHERNET_CONNECTED_NODE
+  // LAN ToDo... ------------------------------------------------------------------------------------------------ToDO-----------------------------------------------
+#endif
+
+   
 
 
 bool ReadRTCMSerialToBuffer (){
@@ -348,6 +318,8 @@ bool ReadRTCMSerialToBuffer (){
       #endif
 
       unsigned long millisOfInput = millis();
+      lastRTCMinputTime = millisOfInput;
+
       for (int x = 0; x < RTCM_LOOP_BUFFER_SIZE; x++){
         if (typeOfMsg == rTCMTransmitLoopBuffer[x].typeOfRTCMMsg){
             #ifdef DEBUG_UART_ENABLED 
@@ -470,7 +442,6 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
           MQTTMsgTopic = MQTTMsgTopic + MQTT_RTCM_BASE_NAME;
           MQTTMsgTopic = MQTTMsgTopic + "/" ;
           MQTTMsgTopic = MQTTMsgTopic + MQTTMsgType;
-          //MQTTMsgTopic = MQTTMsgTopic + "/";
 
           char bMQTTMsg [RTCM_BUFFER_SIZE];
           //char* pbMQTTMsg = bMQTTMsg;
@@ -813,23 +784,21 @@ void setup() { // -------------------------------- S E T U P -------------------
     SerialDebug.println ("Setup");
     DebugLoopTimer.setIntervalMs (DEBUG_WAITING_TIME);
   #endif
-
-  #ifdef LAN_CONNECTED_NODE
-    #ifdef WIFI_CONNECTED_NODE 
-      #ifdef DEBUG_UART_ENABLED
-        SerialDebug.println ("Starting WIFI");
-        SyncWifiConnection.setWifiDebugSerial (&SerialDebug);
-      #endif
-      SyncWifiConnection.init (WIFI_STA, Node_IP, YOUR_WIFI_HOSTNAME, YOUR_WIFI_SSID, YOUR_WIFI_PASSWORD); 
-    #endif 
-
-    #ifdef ETHERNET_CONNECTED_NODE
-      #ifdef DEBUG_UART_ENABLED
-        SerialDebug.println ("Starting ETERNET modul");
-      #endif 
-      //init ETHERNET Modul and connection
-      //todo ...
+  
+  #ifdef WIFI_CONNECTED_NODE 
+    #ifdef DEBUG_UART_ENABLED
+      SerialDebug.println ("Starting WIFI");
+      SyncWifiConnection.setWifiDebugSerial (&SerialDebug);
     #endif
+    SyncWifiConnection.init (WIFI_STA, Node_IP, YOUR_WIFI_HOSTNAME, YOUR_WIFI_SSID, YOUR_WIFI_PASSWORD); 
+  #endif 
+
+  #ifdef ETHERNET_CONNECTED_NODE
+    #ifdef DEBUG_UART_ENABLED
+      SerialDebug.println ("Starting ETERNET modul");
+    #endif 
+    //init ETHERNET Modul and connection
+    //todo ...
   #endif
 
   SerialRTCM.begin (serialRTCMPortBoud, SERIAL_8N1, RTCM_UART_RX, RTCM_UART_TX); //RTCM IN and output //F9P input/output
@@ -856,7 +825,6 @@ void setup() { // -------------------------------- S E T U P -------------------
   #ifdef MQTT_BROKER_VIA_HOSTNAME
     syncMQTTConnection.setMQTTConnection (mqttPubSubClientId, mqttUsername, mqttPassword, true, mqttLANClient, mQTTBrokerHostName, MQTT_CONNECTION_PORT, MQTT_MAX_PACKET_SIZE, MQTT_SET_KEEPALIVE, MQTT_SET_SOCKET_TIMEOUT);
   #endif
-
 
   #ifdef MQTT_BROKER_VIA_IP
       syncMQTTConnection.setMQTTConnection (mqttPubSubClientId, mqttUsername, mqttPassword, true, mqttLANClient, mQTTBrokerIP, MQTT_CONNECTION_PORT, MQTT_MAX_PACKET_SIZE, MQTT_SET_KEEPALIVE, MQTT_SET_SOCKET_TIMEOUT);
@@ -886,12 +854,12 @@ void setup() { // -------------------------------- S E T U P -------------------
 /*
   subscriptionTopic = MQTT_RTCM_TOPIC_INIT;
   subscriptionTopic = subscriptionTopic + MQTT_RTCM_BASE_NAME;
-  subscriptionTopic = subscriptionTopic + "/Command/In/Serial/";
+  subscriptionTopic = subscriptionTopic + "/Command/In/Serial";
   syncMQTTConnection.addSubscriptionToTable (3, (byte*)(subscriptionTopic.c_str()), subscriptionTopic.length ());
 
   subscriptionTopic = MQTT_RTCM_TOPIC_INIT;
   subscriptionTopic = subscriptionTopic + MQTT_RTCM_BASE_NAME;
-  subscriptionTopic = subscriptionTopic + "/Serial/In/";
+  subscriptionTopic = subscriptionTopic + "/Serial/In";
   syncMQTTConnection.addSubscriptionToTable (4, (byte*)(subscriptionTopic.c_str()), subscriptionTopic.length ());
 */
 
@@ -925,31 +893,47 @@ void loop() { // -------------------------------- L O O P ----------------------
 
   ReadRTCMSerialToBuffer (); 
 
-  #ifdef LAN_CONNECTED_NODE
-
-    #ifdef WIFI_CONNECTED_NODE
-      //WIFI CONNECTION MANAGER
-      LANStatus = SyncWifiConnection.loop(millis());
-    #endif
-
-    #ifdef ETHERNET_CONNECTED_NODE
-      //LAN CONNECTION MANAGER
-      //init ETHERNET Modul and connection
-      //todo ...
-      LANStatus = -2;
-    #endif
-
+  #ifdef WIFI_CONNECTED_NODE
+    //WIFI CONNECTION MANAGER
+    LANStatus = SyncWifiConnection.loop(millis());
   #endif
 
-  //RTCM_VIA_MQTT_NODE
+  #ifdef ETHERNET_CONNECTED_NODE
+    //LAN CONNECTION MANAGER
+    //init ETHERNET Modul and connection
+    //todo ...
+    LANStatus = -2;
+  #endif
+
+
   int8_t MQTTStatus;
   MQTTStatus = syncMQTTConnection.loop (millis(), LANStatus);
  
   MQTTTransmitMsg (MQTTStatus);  
 
 
+  int newStatusBaseStation = 2; //i can´t be OFFLINE, have to be 1 = ERROR, 2 = STBY, 3 = ONLINE 
+  if (rTCMviaMQTTisActive){ //if transmitting is required it must be stby
+    newStatusBaseStation = 3;
+  }
+  if (millis () - lastRTCMinputTime  > lastRTCMinputWaitingTime){ //but, if it is to long with no new RTCM data, it has to be an error
+    newStatusBaseStation = 1; //0 == OFFLINE, 1 = ERROR, 2 = STBY, 3 = ONLINE
+  }
+  if (newStatusBaseStation != statusBaseStation){ //something changed
+    statusBaseStation = newStatusBaseStation;
+    if (statusBaseStation == 1){
+      ChangeStringMsgInRoofNodeTransmitBuffer (0,"ERROR",true);
+    }
+    else if (statusBaseStation == 2){
+      ChangeStringMsgInRoofNodeTransmitBuffer (0,"STBY",true);
+    }
+    else if (statusBaseStation == 3){
+      ChangeStringMsgInRoofNodeTransmitBuffer (0,"ONLINE",true);
+    }
+  }
+
   unsigned long RTCMCheckLoopTime = millis ();
-  if (RTCMMsgCheckInUseTimer.getStatus (RTCMCheckLoopTime, false) >= 0){ // wait to check Msg in Use 
+  if (RTCMMsgCheckInUseTimer.getStatus (RTCMCheckLoopTime, true) >= 0){ // wait to check Msg in Use 
     #ifdef DEBUG_UART_ENABLED 
       //SerialDebug.println (" Check RTCM Msg in use, ");
     #endif
