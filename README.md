@@ -1,3 +1,6 @@
+
+# DO NOT USE THIS VERSION - DEBUG IN PROGRESS
+
 # RVMT (RTCM-VIA-MQTT-TRANSMITTER)
 INFO: This Software is made for my private use. I like to share, but for further details read the LICENCE file! (GNU GPL V3)
 
@@ -5,31 +8,23 @@ Check:
 
 RVMR (RTCM-VIA-MQTT-RECEIVER) https://github.com/hagre/RVMR_RTCM-VIA-MQTT-RECEIVER
 
-Protocol https://github.com/hagre/RVMP_RTCM-VIA-MQTT-PROTOCOL 
+RVMP (RTCM-VIA-MQTT-PROTOCOL) https://github.com/hagre/RVMP_RTCM-VIA-MQTT-PROTOCOL 
 
-?(Caster is on https://github.com/hagre/RVMC_RTCM-VIA-MQTT-CASTER)
+?(RVMC (RTCM-VIA-MQTT-CASTER) is on https://github.com/hagre/RVMC_RTCM-VIA-MQTT-CASTER)
 
 RVMT (RTCM VIA MQTT TRANSMITTER) is using the MQTT protocol (as a secure and opensource alternative to NTRIP) to get RTK correction data for my rover GPS units.
 As a target system i will use https://github.com/farmerbriantee/AgOpenGPS.
 
-This is a ESP32 2in1 firmware file.
+This is a ESP32 firmware
 Basic selection of features via #define in the top of this code
 
-#define SERVER_ROOF_NOTE
- 
+This TRANSMITTER is working like a "NTRIP-Base" and transmitting the RTCM data via MQTT to a broker.
 * Transforming RTCM3 serial input into seperated MQTT Msg into differnet Topics. 
 * Send to Broker (Server) with or without secure connection (TLS) and/or Username and Password protected.
-* Topics are for example /NTRIP/Base/XYZ01/RTCM/1005/ or /NTRIP/Base/XYZ01/RTCM/1074/
-* Input can be switched of with a simple ON or OFF msg to e.g "/NTRIP/Base/XYZ01/Commands/"
-* 1005 msg is only transmitted all 20 seconds
+* Topics are for example /RTK/Base/XYZ01/RTCM/1005/ or /RTK/Base/XYZ01/RTCM/1074/
+* Input can be switched of with a simple ON or OFF msg to e.g "/RTK/Base/XYZ01/Commands/"
 * Debug via USB can be enabled
 
-or
-
-#define CLIENT_ROVER_NOTE
- 
-* Subscribing to MQTT Broker and wildcard Base station Topic /NTRIP/Base/XYZ01/RTCM/#
-* all received msg will arrive on the selected serial port and can be feed in to the f9p GPS (or somthing else)
 
 # General
 All connections are currently done over wifi (first preperations are made to implement a Ethernet/LAN connection)
