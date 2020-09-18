@@ -286,8 +286,6 @@ String lastWillTopic;
 #endif
 
    
-
-
 bool ReadRTCMSerialToBuffer (){
   //SerialRead Input
   uint16_t nrReceivedSerial = SerialRTCM.available(); //count serial incomming data 
@@ -309,6 +307,10 @@ bool ReadRTCMSerialToBuffer (){
     int16_t typeOfMsg; 
     int16_t newMsgChar;
     newMsgChar = SerialRTCM.read();
+    #ifdef DEBUG_UART_ENABLED 
+      //SerialDebug.print (".");
+      //SerialDebug.print (char(newMsgChar));
+    #endif
 
     typeOfMsg = RTCMStream.inputByte (newMsgChar);
     if (typeOfMsg > 0) { // new msg completly arrived
@@ -435,7 +437,6 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
             rTCMTransmitLoopBufferTXEpoch = rTCMTransmitLoopBuffer[i].nrOfInternalEpoche;
           }
           // preperation to transmitt 
-
           String MQTTMsgType = String (rTCMTransmitLoopBuffer[i].typeOfRTCMMsg);
           String MQTTMsgTopic = "";
           MQTTMsgTopic = MQTT_RTCM_TOPIC_INIT;
@@ -453,12 +454,12 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
           for (uint16_t x = 0; x < rTCMTransmitLoopBuffer[i].msgLength; x++){
             bMQTTMsg [x]= rTCMTransmitLoopBuffer[i].RTCMMsg[x];
             #ifdef DEBUG_UART_ENABLED 
-              SerialDebug.print (bMQTTMsg[x], HEX); 
+              //SerialDebug.print (bMQTTMsg[x], HEX); 
             #endif
           }
           #ifdef DEBUG_UART_ENABLED 
-            SerialDebug.println ("");
-            SerialDebug.println (bMQTTMsg); 
+            //SerialDebug.println ("");
+            //SerialDebug.println (bMQTTMsg); 
           #endif
 
           int16_t check = 0;
@@ -532,8 +533,8 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
           }
 
           #ifdef DEBUG_UART_ENABLED 
-            SerialDebug.println (MQTTMsgTopic);
-            SerialDebug.println (roofNodeTransmitBuffer[i].contentMsg);
+            //SerialDebug.println (MQTTMsgTopic);
+            //SerialDebug.println (roofNodeTransmitBuffer[i].contentMsg);
           #endif 
 
           int16_t check = 0;
@@ -581,6 +582,7 @@ bool MQTTTransmitMsg (int8_t actualMQTTStatus){
   }
   return false; // MQTT and LAN not connected
 }
+
 
 void SetRoofNodeTransmitBufferStr (uint16_t nbr, String topic, String msg, int16_t typeOfRTCMMsg, uint8_t qOS, bool retain){
   for (uint16_t i = 0; i < topic.length(); i++){
@@ -649,6 +651,7 @@ void receivedMQTTCallback(char* topic, byte* payload, unsigned int length) {
   #ifdef DEBUG_UART_ENABLED 
     SerialDebug.println (" Callback ");
   #endif
+
   if (strcmp(topic, syncMQTTConnection.getTopicFromBuffer(2)) == 0){ //RTCM Transmitter ON / OFF
     #ifdef DEBUG_UART_ENABLED 
       SerialDebug.println (syncMQTTConnection.getTopicFromBuffer(2));
@@ -657,7 +660,6 @@ void receivedMQTTCallback(char* topic, byte* payload, unsigned int length) {
     if (((char)payload[0]) == 'O'){ //ON
       if (((char)payload[1]) == 'N'){
         rTCMviaMQTTisActive = true;
-        ChangeStringMsgInRoofNodeTransmitBuffer (0, "ONLINE", true); // change Status indication
         #ifdef DEBUG_UART_ENABLED
           SerialDebug.println("Message received: ON NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN");
         #endif
@@ -667,7 +669,6 @@ void receivedMQTTCallback(char* topic, byte* payload, unsigned int length) {
       if (((char)payload[1]) == 'F'){
         //if (((char)payload[2]) == 'F'){
           rTCMviaMQTTisActive = false;
-          ChangeStringMsgInRoofNodeTransmitBuffer (0, "OFFLINE", false); // change Status indication
           #ifdef DEBUG_UART_ENABLED
             SerialDebug.println("Message received: OFF FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF ");
           #endif
@@ -719,12 +720,13 @@ void initRoofNodeTransmitBuffer (String topicFirstPart){
   tempValueStr = tempValueStr + ".";
   tempValueStr = tempValueStr + PROT_SUB_VERSION;
   SetRoofNodeTransmitBufferStr (2, tempTopic, tempValueStr, 0, 1, true);
+  
   tempTopic = topicFirstPart;
   tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
   tempTopic = tempTopic + "/Status/Error";
   tempValueStr = "Booting";
   SetRoofNodeTransmitBufferStr (3, tempTopic, tempValueStr, 0, 0, false);
-
+  
   tempTopic = topicFirstPart;
   tempTopic = tempTopic + MQTT_RTCM_BASE_NAME;
   tempTopic = tempTopic + "/1005";
@@ -849,7 +851,7 @@ void setup() { // -------------------------------- S E T U P -------------------
   syncMQTTConnection.addSubscriptionToTable (2, subscriptionTopic.c_str(), subscriptionTopic.length ());
 
   subscriptionTopic = "#";
-  syncMQTTConnection.addSubscriptionToTable (3, subscriptionTopic.c_str(), subscriptionTopic.length ());
+  //syncMQTTConnection.addSubscriptionToTable (3, subscriptionTopic.c_str(), subscriptionTopic.length ());
 
 /*
   subscriptionTopic = MQTT_RTCM_TOPIC_INIT;
@@ -911,7 +913,6 @@ void loop() { // -------------------------------- L O O P ----------------------
  
   MQTTTransmitMsg (MQTTStatus);  
 
-
   int newStatusBaseStation = 2; //i can´t be OFFLINE, have to be 1 = ERROR, 2 = STBY, 3 = ONLINE 
   if (rTCMviaMQTTisActive){ //if transmitting is required it must be stby
     newStatusBaseStation = 3;
@@ -961,7 +962,7 @@ void loop() { // -------------------------------- L O O P ----------------------
       
       if (RTCMCheckLoopTime - rTCMTransmitLoopBuffer[i].lastRTCMinUseUpdateTime > RTCM_IN_USE_MSG_UPDATE_DELAY){
         #ifdef DEBUG_UART_ENABLED 
-            //SerialDebug.println (" RTCM Status Update possible ");
+          //SerialDebug.println (" RTCM Status Update possible ");
         #endif
         if (rTCMTransmitLoopBuffer[i].averageReceiveIntervalSent != rTCMTransmitLoopBuffer[i].averageReceiveIntervalCalculated){ //different values detected
           #ifdef DEBUG_UART_ENABLED 
